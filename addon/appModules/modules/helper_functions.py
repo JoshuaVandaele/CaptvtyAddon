@@ -5,6 +5,12 @@ from NVDAObjects.IAccessible import IAccessible
 import winUser
 from logHandler import log
 import controlTypes
+from enum import IntEnum, auto
+
+class AppModes(IntEnum):
+    DIRECT = auto()
+    RATTRAPAGE = auto()
+    OTHER = auto()
 
 if TYPE_CHECKING:
     from locationHelper import RectLTWH
@@ -108,8 +114,15 @@ def where_is_element_trespassing(element: Union[IAccessible, NVDAObject], window
     """
     # We are using _get_location because the `location` attribute gets cached,
     # which would break this function if it's being called after an element has been moved
-    element_location: RectLTWH = element._get_location() 
-    window_location: RectLTWH = window._get_location()   
+    element_location: Union[RectLTWH,None] = element._get_location() 
+    window_location: Union[RectLTWH,None] = window._get_location()   
+
+    if not element_location:
+        log.error("element.location is unbound")
+        return
+    if not window_location:
+        log.error("window.location is unbound")
+        return
 
     element_right = element_location.left + element_location.width
     element_bottom = element_location.top + element_location.height
@@ -146,26 +159,23 @@ def scroll_to_element(element: Union[IAccessible, NVDAObject], scroll_delta: int
     Returns:
         None
     """
-    attempts = 0
     window = api.getForegroundObject()
-    
+
     scrollable_container = scrollable_container or find_scrollable_container(element)
-    
+
     if not scrollable_container:
         log.debugWarning("Could not find a scrollable container")
         return
 
-    while attempts < max_attempts:
+    for _ in range(max_attempts):
         trespassing_side = where_is_element_trespassing(element, window)
-        
+
         log.info(f"trespassing: {trespassing_side}")
 
         if trespassing_side == "above":
             scroll_element_with_mouse(scrollable_container, delta=scroll_delta)
         elif trespassing_side == "below":
             scroll_element_with_mouse(scrollable_container, delta=-scroll_delta)
-
-        attempts += 1
 
 def find_scrollable_container(element: Union[IAccessible, NVDAObject]) -> Optional[Union[IAccessible, NVDAObject]]:
     """
@@ -196,3 +206,45 @@ def find_scrollable_container(element: Union[IAccessible, NVDAObject]) -> Option
         container = container.parent
 
     return None
+
+from typing import Optional
+from NVDAObjects import NVDAObject
+
+def find_element_by_name(root: Union[IAccessible, NVDAObject], name: str) -> Optional[NVDAObject]:
+    """
+    Find an element with a specific name in the UI tree starting from the given root.
+
+    Args:
+        root (Union[IAccessible, NVDAObject]): The root object to start the search from.
+        name (str): The name of the element to find.
+
+    Returns:
+        NVDAObject: The found element, or None if the element is not found.
+    """
+    if root.name == name:
+        return root
+
+    for child in root.children:
+        found_element = find_element_by_name(child, name)
+        if found_element:
+            return found_element
+
+    return None
+
+def scroll_and_click_on_element(element: Union[IAccessible, NVDAObject], scroll_delta: int = 120, max_attempts: int = 10, scrollable_container: Optional[Union[IAccessible, NVDAObject]] = None, x_offset: int = 0, y_offset: int = 0) -> None:
+    """
+    Scrolls the current foreground window to bring the specified element into view and then clicks on it.
+
+    Args:
+        element (Union[IAccessible, NVDAObject]): The element to scroll into view and click.
+        scroll_delta (int, optional): The delta for the mouse wheel scrolling. Defaults to 120.
+        max_attempts (int, optional): The maximum number of scroll attempts. Defaults to 10.
+        scrollable_container: (Union[IAccessible, NVDAObject], optional): Container in which we will scroll.
+        x_offset (int, optional): The x offset to add to the center of the element. Defaults to 0.
+        y_offset (int, optional): The y offset to add to the center of the element. Defaults to 0.
+
+    Returns:
+        None
+    """
+    scroll_to_element(element, scroll_delta, max_attempts, scrollable_container)
+    click_element_with_mouse(element, x_offset, y_offset)
