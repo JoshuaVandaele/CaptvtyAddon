@@ -1,6 +1,5 @@
 import wx
 from gui import guiHelper
-from speech import speakText
 from typing import List, Callable, Optional
 from NVDAObjects import NVDAObject
 
@@ -53,9 +52,6 @@ class ElementsListDialog(wx.Frame):
         mainSizer.Fit(self)
         self.elementsListBox.SetFocus()
 
-        # Bind the speakSelectedElement method to the ListBox
-        self.elementsListBox.Bind(wx.EVT_LISTBOX, self.speakSelectedElement)
-
     def onKeyPress(self, event: wx.KeyEvent) -> None:
         """
         Handles key press events in the dialog.
@@ -88,18 +84,3 @@ class ElementsListDialog(wx.Frame):
         
         if self.callback:
             self.callback(self.selectedElement)
-
-    def speakSelectedElement(self, event: wx.Event) -> None:
-        """
-        Speaks the name of the currently selected element in the ListBox.
-        
-        Args:
-        event (wx.Event): The event associated with the ListBox selection.
-
-        Returns:
-            None
-        """
-        selectedIndex = self.elementsListBox.GetSelection()
-        if selectedIndex != -1:
-            selectedElementName = self.elements_names[selectedIndex]
-            speakText(selectedElementName)
