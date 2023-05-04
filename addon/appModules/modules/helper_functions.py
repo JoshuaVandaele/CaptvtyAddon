@@ -1,10 +1,13 @@
 import api
 from NVDAObjects import NVDAObject
-from typing import Optional, Union
+from typing import Optional, Union, TYPE_CHECKING
 from NVDAObjects.IAccessible import IAccessible
 import winUser
 from logHandler import log
 import controlTypes
+
+if TYPE_CHECKING:
+    from locationHelper import RectLTWH
 
 def setFocus(obj: NVDAObject) -> None:
     """
@@ -91,7 +94,6 @@ def scroll_element_with_mouse(
 
     winUser.mouse_event(winUser.MOUSEEVENTF_WHEEL, x, y, delta, 0)
 
-
 def where_is_element_trespassing(element: Union[IAccessible, NVDAObject], window: Union[IAccessible, NVDAObject]) -> Optional[str]:
     """
     Determines which side of a window an element is trespassing on, if any.
@@ -104,47 +106,66 @@ def where_is_element_trespassing(element: Union[IAccessible, NVDAObject], window
         A string indicating the side of the window the element is trespassing on (i.e. "above", "below", "left", "right"),
         or None if the element is inside the window.
     """
-    element_location = element.location # type: ignore - location is defined for IAccessible 
-    window_location = window.location   # type: ignore - location is defined for IAccessible 
+    # We are using _get_location because the `location` attribute gets cached,
+    # which would break this function if it's being called after an element has been moved
+    element_location: RectLTWH = element._get_location() 
+    window_location: RectLTWH = window._get_location()   
 
-    if element_location.bottom < window_location.top:
-        return "above"
-    elif element_location.top > window_location.bottom:
+    element_right = element_location.left + element_location.width
+    element_bottom = element_location.top + element_location.height
+    window_right = window_location.left + window_location.width
+    window_bottom = window_location.top + window_location.height
+    
+    log.info(f"element {element_location}, bottom {element_bottom}, right {element_right}")
+    log.info(f"window {window_location}, bottom {window_bottom}, right {window_right}")
+    is_inside_horizontal = element_location.left >= window_location.left and element_right <= window_right
+    is_inside_vertical = element_location.top >= window_location.top and element_bottom <= window_bottom
+
+    if is_inside_horizontal and is_inside_vertical:
+        return None
+    elif element_location.top > window_bottom:
         return "below"
-    elif element_location.right < window_location.left:
-        return "left"
-    elif element_location.left > window_location.right:
+    elif element_bottom < window_location.top:
+        return "above"
+    elif element_location.left > window_right:
         return "right"
-    return None
+    elif element_right < window_location.left:
+        return "left"
+    raise AssertionError("Bounds must be within two dimensions")
 
-
-def scroll_to_element(element: Union[IAccessible, NVDAObject], window: Union[IAccessible, NVDAObject]) -> None:
+def scroll_to_element(element: Union[IAccessible, NVDAObject], scroll_delta: int = 120, max_attempts: int = 10, scrollable_container: Optional[Union[IAccessible, NVDAObject]] = None) -> None:
     """
-    Scrolls the window containing the element until the element is visible.
+    Scrolls the current foreground window to bring the specified element into view.
 
     Args:
-        element (Union[IAccessible, NVDAObject]): The element to scroll to.
-        window (Union[IAccessible, NVDAObject]): The window containing the element.
+        element (Union[IAccessible, NVDAObject]): The element to scroll into view.
+        scroll_delta (int, optional): The delta for the mouse wheel scrolling. Defaults to 120.
+        max_attempts (int, optional): The maximum number of scroll attempts. Defaults to 10.
+        scrollable_container: (Union[IAccessible, NVDAObject], optional): Container in which we will scroll.
 
     Returns:
         None
     """
-    while True:
+    attempts = 0
+    window = api.getForegroundObject()
+    
+    scrollable_container = scrollable_container or find_scrollable_container(element)
+    
+    if not scrollable_container:
+        log.debugWarning("Could not find a scrollable container")
+        return
+
+    while attempts < max_attempts:
         trespassing_side = where_is_element_trespassing(element, window)
-
-        if not trespassing_side:
-            break
-
-        scrollable_container = find_scrollable_container(element)
-
-        if not scrollable_container:
-            log.error("Couldn't find a scrollable container.")
-            break
+        
+        log.info(f"trespassing: {trespassing_side}")
 
         if trespassing_side == "above":
-            scroll_element_with_mouse(scrollable_container, delta=120)  # Scroll up
+            scroll_element_with_mouse(scrollable_container, delta=scroll_delta)
         elif trespassing_side == "below":
-            scroll_element_with_mouse(scrollable_container, delta=-120)  # Scroll down
+            scroll_element_with_mouse(scrollable_container, delta=-scroll_delta)
+
+        attempts += 1
 
 def find_scrollable_container(element: Union[IAccessible, NVDAObject]) -> Optional[Union[IAccessible, NVDAObject]]:
     """
@@ -160,8 +181,18 @@ def find_scrollable_container(element: Union[IAccessible, NVDAObject]) -> Option
     container = element.parent
 
     while container:
-        if container.role == controlTypes.ROLE_SCROLLPANE:
+        if container.role in [
+            controlTypes.ROLE_SCROLLPANE,
+            controlTypes.ROLE_SCROLLBAR,
+        ]:
             return container
+        if container.role == controlTypes.ROLE_PANE:
+            for container_child in container.children:
+                if container_child.role in [
+                    controlTypes.ROLE_SCROLLPANE,
+                    controlTypes.ROLE_SCROLLBAR,
+                ]:
+                    return container_child
         container = container.parent
 
     return None

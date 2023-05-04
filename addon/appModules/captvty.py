@@ -42,7 +42,8 @@ class AppModule(appModuleHandler.AppModule):
         if channelList:
             def selectedChannelCallback(selectedElement: Union[None, NVDAObject]) -> None:
                 if selectedElement:
-                    scroll_to_element(selectedElement, api.getForegroundObject())
+                    scroll_area = selectedElement.parent.parent.parent # type:ignore - Channels are assumed to always be in the channel list
+                    scroll_to_element(selectedElement, max_attempts=30, scrollable_container=scroll_area)
                     click_element_with_mouse(selectedElement, y_offset=-20)
             log.debug("Channel list focused")
             ui.message("Liste des chaines sélectionnée")
