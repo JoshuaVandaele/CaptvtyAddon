@@ -6,6 +6,7 @@ from NVDAObjects import NVDAObject
 from typing import Union, List, Optional, Callable, Dict
 from gui import mainFrame
 import api
+import controlTypes
 
 from .modules.helper_functions import find_element_by_size, scroll_and_click_on_element, find_element_by_name, AppModes, scroll_to_element
 from .modules.list_elements import ElementsListDialog
@@ -21,6 +22,14 @@ class AppModule(appModuleHandler.AppModule):
         
     def event_gainFocus(self, obj: NVDAObject, nextHandler: Callable) -> None:
         """Handles the gainFocus event."""
+        app_mode: AppModes = getAppMode()
+        if app_mode == AppModes.DIRECT:
+            ui.message("Menu direct sélectionné")
+        elif app_mode == AppModes.RATTRAPAGE:
+            ui.message("Menu rattrapage sélectionné")
+        else:
+            ui.message("Sélectionnez un menu entre direct (CTRL+D) et rattrapage (CTRL+R)")
+            
         log.debug("-=== Captvty Focused ===-")
         nextHandler()
 
@@ -28,6 +37,38 @@ class AppModule(appModuleHandler.AppModule):
         """Handles the loseFocus event."""
         log.debug("-=== Captvty Unfocused ===-")
         nextHandler()
+
+    @script(gesture="kb:control+d")
+    def script_CTRL_D_Override(self, gesture):
+        """
+        Overrides the default behavior of the CTRL+D keyboard shortcut
+        with custom functionality.
+        """
+        buttons = getModeButtonList()
+        if not buttons:
+            log.error("We couldn't fetch the mode buttons!")
+            return
+        for button in buttons:
+            if button.name == "DIRECT":
+                button.doAction()
+                ui.message("Menu direct sélectionné")
+                break
+
+    @script(gesture="kb:control+r")
+    def script_CTRL_R_Override(self, gesture):
+        """
+        Overrides the default behavior of the CTRL+R keyboard shortcut
+        with custom functionality.
+        """
+        buttons = getModeButtonList()
+        if not buttons:
+            log.error("We couldn't fetch the mode buttons!")
+            return
+        for button in buttons:
+            if button.name == "RATTRAPAGE":
+                button.doAction()
+                ui.message("Menu rattrapage sélectionné")
+                break
 
     @script(
         description="Liste les chaines.",
@@ -90,10 +131,16 @@ def getModeButtonList() -> Optional[List[NVDAObject]]:
     """
     window = api.getForegroundObject()
     
-    elem = window.children[3].children[3]
+    pane = window.children[3].children[3]
+    
+    mode_buttons = []
+    for pane_child in pane.children:
+        for button in pane_child.children:
+            if button.role == controlTypes.ROLE_BUTTON:
+                mode_buttons.append(button)
+                break
 
-    return list(elem.children)
-
+    return mode_buttons
 
 def getChannelButtonList() -> Optional[List[NVDAObject]]:
     """
