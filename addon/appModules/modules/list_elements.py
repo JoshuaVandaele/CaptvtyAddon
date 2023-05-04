@@ -34,16 +34,17 @@ class ElementsListDialog(wx.Frame):
         """Creates the dialog layout."""
         mainSizer = wx.BoxSizer(wx.VERTICAL)
 
-        label = wx.StaticText(self, wx.ID_ANY, "Select an element:")
+        label = wx.StaticText(self, wx.ID_ANY, "Sélectionnez un élément")
         mainSizer.Add(label, flag=wx.LEFT | wx.RIGHT | wx.TOP, border=8)
 
         self.elementsListBox = wx.ListBox(self, choices=self.elements_names, style=wx.LB_SINGLE)
+        self.elementsListBox.SetSelection(0) # Set the default selection as the first one in the list
         mainSizer.Add(self.elementsListBox, proportion=1, flag=wx.EXPAND | wx.LEFT | wx.RIGHT | wx.TOP, border=8)
 
         buttons = guiHelper.ButtonHelper(wx.HORIZONTAL)
         okButton = buttons.addButton(self, wx.ID_OK, label="OK")
         okButton.Bind(wx.EVT_BUTTON, self.onOk)
-        buttons.addButton(self, wx.ID_CANCEL, label="Cancel")
+        buttons.addButton(self, wx.ID_CANCEL, label="Annuler")
         mainSizer.Add(buttons.sizer, flag=wx.EXPAND | wx.LEFT | wx.RIGHT | wx.BOTTOM, border=8)
         
         self.elementsListBox.Bind(wx.EVT_KEY_DOWN, self.onKeyPress)
