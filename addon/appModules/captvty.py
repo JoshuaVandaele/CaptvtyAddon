@@ -9,7 +9,8 @@ from logHandler import log
 from NVDAObjects import NVDAObject
 from scriptHandler import script
 
-from .modules.helper_functions import (AppModes, find_element_by_size,
+from .modules.helper_functions import (AppModes, click_element_with_mouse,
+                                       find_element_by_size,
                                        scroll_and_click_on_element,
                                        scroll_to_element)
 from .modules.list_elements import ElementsListDialog
@@ -17,7 +18,13 @@ from .modules.list_elements import ElementsListDialog
 # Constants
 # Width of the channel list on the left side of the window, this constant is used to locate it on screen
 CHANNEL_LIST_WIDTH = 263
-
+# Offsets for the mouse when selecting an element
+DIRECT_CHANNEL_LIST_VIEW_BUTTON_OFFSET_Y = -20
+DIRECT_CHANNEL_LIST_VIDEOPLAYER_BUTTON_OFFSET_X = 162
+DIRECT_CHANNEL_LIST_RECORD_BUTTON_OFFSET_X = 185
+# Amount of buttons at the top left with different modes for the app.
+# There 3 modes at the time of writing are: Direct, Rattrapage, and Telechargement Manuel 
+MODE_BUTTONS_COUNT = 3
 
 class AppModule(appModuleHandler.AppModule):
     def __init__(self, processID, appName=None):
@@ -88,43 +95,17 @@ class AppModule(appModuleHandler.AppModule):
         ui.message("Chargement de la liste des chaines")
         channelList: Union[List[NVDAObject], None] = getChannelButtonList()
         log.debug(f"channelList: {channelList}")
-        if channelList:
+        if channelList and mainFrame:
             app_mode: AppModes = getAppMode()
 
             def selectedChannelCallback(selectedElement: Union[None, NVDAObject]) -> None:
                 nonlocal app_mode
                 if not selectedElement:
                     return
-                scroll_area = selectedElement.parent.parent.parent # type:ignore - Channels are assumed to always be in the channel list
                 if app_mode == AppModes.RATTRAPAGE:
-                    if self.current_channel_rattrapage:
-                        # If the channel is already selectioned, ignore the request to select it
-                        if self.current_channel_rattrapage == selectedElement:
-                            return
-                        scroll_and_click_on_element(
-                            element=self.current_channel_rattrapage,
-                            scrollable_container=scroll_area,
-                            y_offset=-20,
-                        )
-                    self.current_channel_rattrapage = selectedElement
-                    scroll_and_click_on_element(
-                        element=selectedElement,
-                        max_attempts=30,
-                        scrollable_container=scroll_area,
-                        y_offset=-20,
-                    )
-                    # TODO: Open a list of programs with their name, time of diffusion, and description
-                    raise NotImplementedError(
-                        "We cannot list programs yet in Rattrapage mode"
-                    )
+                    self._rattrapageSelectedChannelCallback(selectedElement)
                 elif app_mode == AppModes.DIRECT:
-                    scroll_to_element(
-                        element=selectedElement,
-                        max_attempts=30,
-                        scrollable_container=scroll_area,
-                    )
-                    # TODO: Prompt the user to know if they want to watch the channel, or record it
-                    raise NotImplementedError("We cannot select a channel yet in Direct mode")
+                    self._directSelectedChannelCallback(selectedElement)
                 else:
                     raise ValueError(
                         f"{app_mode} is not a supported operation.\n"
@@ -133,7 +114,7 @@ class AppModule(appModuleHandler.AppModule):
 
             log.debug("Channel list focused")
             ui.message("Liste des chaines sélectionnée")
-            mainFrame.prePopup()  # type: ignore - prePopup is known and defined
+            mainFrame.prePopup()
             dialog = ElementsListDialog(
                 mainFrame,
                 channelList,
@@ -141,11 +122,75 @@ class AppModule(appModuleHandler.AppModule):
                 title="Liste des chaines",
             )
             dialog.Show()
-            mainFrame.postPopup()  # type: ignore - postPopup is known and defined
+            mainFrame.postPopup()
         else:
             ui.message("Une erreur fatale s'est produite lors du chargement de la liste des chaînes")
             log.error("Could not focus channel list: Channel list not found")
 
+    def _directSelectViewOptionCallback(self, selectedElement: NVDAObject, selectedOption: str):
+        if selectedOption == "Visionner en direct avec le lecteur interne":
+            click_element_with_mouse(
+                element=selectedElement,
+                y_offset=DIRECT_CHANNEL_LIST_VIEW_BUTTON_OFFSET_Y,
+            )
+        elif selectedOption == "Visionner en direct avec un lecteur externe":
+            click_element_with_mouse(
+                element=selectedElement,
+                y_offset=DIRECT_CHANNEL_LIST_VIEW_BUTTON_OFFSET_Y,
+                x_offset=DIRECT_CHANNEL_LIST_VIDEOPLAYER_BUTTON_OFFSET_X
+            )
+        elif selectedOption == "Programmer l'enregistrement":
+            # TODO: Prompt the user for it and then manually apply the settings, since this menu is not accessible 
+            click_element_with_mouse(
+                element=selectedElement,
+                y_offset=DIRECT_CHANNEL_LIST_VIEW_BUTTON_OFFSET_Y,
+                x_offset=DIRECT_CHANNEL_LIST_RECORD_BUTTON_OFFSET_X
+            )
+        else:
+            raise NotImplementedError
+
+    def _directSelectedChannelCallback(self, selectedElement: NVDAObject):
+        scroll_area = selectedElement.parent.parent.parent # type:ignore - Channels are assumed to always be in the channel list
+        scroll_to_element(
+            element=selectedElement,
+            max_attempts=30,
+            scrollable_container=scroll_area,
+        )
+        if mainFrame:
+            mainFrame.prePopup()
+            dialog = ElementsListDialog(
+                parent=mainFrame,
+                elements=["Visionner en direct avec le lecteur interne", "Visionner en direct avec un lecteur externe","Programmer l'enregistrement"],
+                callback=lambda option: self._directSelectViewOptionCallback(selectedElement, option),
+                title="Choisissez une option",
+                list_label=""
+            )
+            dialog.Show()
+            mainFrame.postPopup()
+        else:
+            raise NotImplementedError
+    
+    def _rattrapageSelectedChannelCallback(self, selectedElement: NVDAObject):
+        scroll_area = selectedElement.parent.parent.parent # type:ignore - Channels are assumed to always be in the channel list
+        
+        if self.current_channel_rattrapage:
+            # If the channel is already selectioned, ignore the request to select it
+            if self.current_channel_rattrapage == selectedElement:
+                return
+            scroll_and_click_on_element(
+                element=self.current_channel_rattrapage,
+                scrollable_container=scroll_area,
+                y_offset=-20,
+            )
+        self.current_channel_rattrapage = selectedElement
+        scroll_and_click_on_element(
+            element=selectedElement,
+            max_attempts=30,
+            scrollable_container=scroll_area,
+            y_offset=-20,
+        )
+        # TODO: Open a list of programs with their name, time of diffusion, and description
+        raise NotImplementedError("We cannot list programs yet in Rattrapage mode")
 
 def getModeButtonList() -> Optional[List[NVDAObject]]:
     """
@@ -156,17 +201,28 @@ def getModeButtonList() -> Optional[List[NVDAObject]]:
         or None if the expected element hierarchy is not found.
     """
     window = api.getForegroundObject()
+    
+    if not hasattr(getModeButtonList, "_index_cache"):
+        getModeButtonList._index_cache = 0
+    
+    # This is probably not the most efficient approach, however,
+    # on computer restart the index changes at random,
+    # and there is no other way that I know of to identify this element.
+    for i in range(getModeButtonList._index_cache, len(window.children)):
+        pane = window.children[i].children[3]
 
-    pane = window.children[3].children[3]
-
-    mode_buttons = []
-    for pane_child in pane.children:
-        for button in pane_child.children:
-            if button.role == controlTypes.ROLE_BUTTON:
-                mode_buttons.append(button)
-                break
-
-    return mode_buttons
+        mode_buttons = []
+        for pane_child in pane.children:
+            for button in pane_child.children:
+                if button.role == controlTypes.ROLE_BUTTON:
+                    mode_buttons.append(button)
+                    break
+        if len(mode_buttons) == MODE_BUTTONS_COUNT:
+            getModeButtonList._index_cache = i
+            return mode_buttons
+        
+    del getModeButtonList._index_cache
+    return None
 
 
 def getChannelButtonList() -> Optional[List[NVDAObject]]:
