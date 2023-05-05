@@ -1,7 +1,9 @@
+from typing import Callable, List, Optional
+
 import wx
 from gui import guiHelper
-from typing import List, Callable, Optional
 from NVDAObjects import NVDAObject
+
 
 class ElementsListDialog(wx.Frame):
     def __init__(self, parent: wx.Window, elements: List[NVDAObject], callback: Optional[Callable[[Optional[NVDAObject]], None]] = None, title: str = "Elements List"):
@@ -19,11 +21,11 @@ class ElementsListDialog(wx.Frame):
         self.elements = elements
         self.elements_names = [e.name for e in self.elements]
         self.callback = callback
-        
+
         self.selectedElement = None
 
         self._createLayout()
-        
+
         screen_width, screen_height = wx.DisplaySize()
         dialog_width, dialog_height = self.GetSize()
         position_x = screen_width - dialog_width
@@ -38,7 +40,7 @@ class ElementsListDialog(wx.Frame):
         mainSizer.Add(label, flag=wx.LEFT | wx.RIGHT | wx.TOP, border=8)
 
         self.elementsListBox = wx.ListBox(self, choices=self.elements_names, style=wx.LB_SINGLE)
-        self.elementsListBox.SetSelection(0) # Set the default selection as the first one in the list
+        self.elementsListBox.SetSelection(0)  # Set the default selection as the first one in the list
         mainSizer.Add(self.elementsListBox, proportion=1, flag=wx.EXPAND | wx.LEFT | wx.RIGHT | wx.TOP, border=8)
 
         buttons = guiHelper.ButtonHelper(wx.HORIZONTAL)
@@ -46,7 +48,7 @@ class ElementsListDialog(wx.Frame):
         okButton.Bind(wx.EVT_BUTTON, self.onOk)
         buttons.addButton(self, wx.ID_CANCEL, label="Annuler")
         mainSizer.Add(buttons.sizer, flag=wx.EXPAND | wx.LEFT | wx.RIGHT | wx.BOTTOM, border=8)
-        
+
         self.elementsListBox.Bind(wx.EVT_KEY_DOWN, self.onKeyPress)
 
         self.SetSizer(mainSizer)
@@ -67,7 +69,7 @@ class ElementsListDialog(wx.Frame):
             self.onOk(event)
         else:
             event.Skip()
-            
+
     def onOk(self, event: wx.Event) -> None:
         """
         Handles the OK button click event.
@@ -82,6 +84,6 @@ class ElementsListDialog(wx.Frame):
         if selectedIndex != -1:
             self.selectedElement = self.elements[selectedIndex]
         self.Close()
-        
+
         if self.callback:
             self.callback(self.selectedElement)
