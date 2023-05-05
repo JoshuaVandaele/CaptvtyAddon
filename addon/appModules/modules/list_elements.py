@@ -1,25 +1,34 @@
-from typing import Callable, List, Optional
+from typing import Any, Callable, List, Optional, Union
 
 import wx
 from gui import guiHelper
 from NVDAObjects import NVDAObject
+from NVDAObjects.IAccessible import IAccessible
 
 
 class ElementsListDialog(wx.Frame):
-    def __init__(self, parent: wx.Window, elements: List[NVDAObject], callback: Optional[Callable[[Optional[NVDAObject]], None]] = None, title: str = "Elements List"):
+    def __init__(self, parent: wx.Window, elements: List[Any], callback: Optional[Callable[[Any], None]] = None, title: str = "Liste d'éléments", list_label: str = "Sélectionnez un élément"):
         """
         A custom wx.Frame dialog that displays a list of elements for the user to select from.
 
         Args:
             parent (wx.Window): The parent window for the dialog.
-            elements (List[NVDAObject]): A list of elements (NVDAObjects) to display in the dialog.
-            callback (Optional[Callable[[NVDAObject], None]], optional): A callback function to be called when the user selects an element. Defaults to None.
-            title (str, optional): The title of the dialog. Defaults to "Elements List".
+            elements (List[Union[NVDAObject, IAccessible, int, str, float]]): A list of elements to display in the dialog.
+            callback (Callable[[NVDAObject], None], optional): A callback function to be called when the user selects an element. Defaults to None.
+            title (str, optional): The title of the dialog. Defaults to "Liste d'éléments".
+            list_label (str: optional): The label of the list. Defaults to "Sélectionnez un élément"
         """
         super(ElementsListDialog, self).__init__(parent, title=title)
+        
+        self.list_label = list_label
 
         self.elements = elements
-        self.elements_names = [e.name for e in self.elements]
+        self.element_names = []
+        for element in self.elements:
+            if isinstance(element, (NVDAObject, IAccessible)):
+                self.element_names.append(element.name)
+            else:
+                self.element_names.append(str(element))
         self.callback = callback
 
         self.selectedElement = None
@@ -36,17 +45,18 @@ class ElementsListDialog(wx.Frame):
         """Creates the dialog layout."""
         mainSizer = wx.BoxSizer(wx.VERTICAL)
 
-        label = wx.StaticText(self, wx.ID_ANY, "Sélectionnez un élément")
+        label = wx.StaticText(self, wx.ID_ANY, self.list_label)
         mainSizer.Add(label, flag=wx.LEFT | wx.RIGHT | wx.TOP, border=8)
 
-        self.elementsListBox = wx.ListBox(self, choices=self.elements_names, style=wx.LB_SINGLE)
+        self.elementsListBox = wx.ListBox(self, choices=self.element_names, style=wx.LB_SINGLE)
         self.elementsListBox.SetSelection(0)  # Set the default selection as the first one in the list
         mainSizer.Add(self.elementsListBox, proportion=1, flag=wx.EXPAND | wx.LEFT | wx.RIGHT | wx.TOP, border=8)
 
         buttons = guiHelper.ButtonHelper(wx.HORIZONTAL)
         okButton = buttons.addButton(self, wx.ID_OK, label="OK")
         okButton.Bind(wx.EVT_BUTTON, self.onOk)
-        buttons.addButton(self, wx.ID_CANCEL, label="Annuler")
+        cancelButton = buttons.addButton(self, wx.ID_CANCEL, label="Annuler")
+        cancelButton.Bind(wx.EVT_BUTTON, self.Close)
         mainSizer.Add(buttons.sizer, flag=wx.EXPAND | wx.LEFT | wx.RIGHT | wx.BOTTOM, border=8)
 
         self.elementsListBox.Bind(wx.EVT_KEY_DOWN, self.onKeyPress)
@@ -65,8 +75,11 @@ class ElementsListDialog(wx.Frame):
         Returns:
             None
         """
-        if event.GetKeyCode() == wx.WXK_RETURN:
+        keyCode = event.GetKeyCode()
+        if keyCode == wx.WXK_RETURN:
             self.onOk(event)
+        elif keyCode == wx.WXK_ESCAPE:
+            self.Close()
         else:
             event.Skip()
 
