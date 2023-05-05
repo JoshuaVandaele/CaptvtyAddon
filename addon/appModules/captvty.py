@@ -1,25 +1,29 @@
-import appModuleHandler
-from logHandler import log
-import ui
-from scriptHandler import script
-from NVDAObjects import NVDAObject
-from typing import Union, List, Optional, Callable, Dict
-from gui import mainFrame
-import api
-import controlTypes
+from typing import Callable, List, Optional, Union
 
-from .modules.helper_functions import find_element_by_size, scroll_and_click_on_element, find_element_by_name, AppModes, scroll_to_element
+import api
+import appModuleHandler
+import controlTypes
+import ui
+from gui import mainFrame
+from logHandler import log
+from NVDAObjects import NVDAObject
+from scriptHandler import script
+
+from .modules.helper_functions import (AppModes, find_element_by_size,
+                                       scroll_and_click_on_element,
+                                       scroll_to_element)
 from .modules.list_elements import ElementsListDialog
 
 # Constants
 # Width of the channel list on the left side of the window, this constant is used to locate it on screen
 CHANNEL_LIST_WIDTH = 263
 
+
 class AppModule(appModuleHandler.AppModule):
     def __init__(self, processID, appName=None):
         super().__init__(processID, appName)
         self.current_channel_rattrapage = None
-        
+
     def event_gainFocus(self, obj: NVDAObject, nextHandler: Callable) -> None:
         """Handles the gainFocus event."""
         app_mode: AppModes = getAppMode()
@@ -29,7 +33,7 @@ class AppModule(appModuleHandler.AppModule):
             ui.message("Menu rattrapage sélectionné")
         else:
             ui.message("Sélectionnez un menu entre direct (CTRL+D) et rattrapage (CTRL+R)")
-            
+
         log.debug("-=== Captvty Focused ===-")
         nextHandler()
 
@@ -70,10 +74,7 @@ class AppModule(appModuleHandler.AppModule):
                 ui.message("Menu rattrapage sélectionné")
                 break
 
-    @script(
-        description="Liste les chaines.",
-        gesture="kb:NVDA+L"
-    )
+    @script(description="Liste les chaines.", gesture="kb:NVDA+L")
     def script_ChannelList(self, gesture: Union[str, None]) -> None:
         """
         Displays a dialog with the channels to select from and selects it.
@@ -89,6 +90,7 @@ class AppModule(appModuleHandler.AppModule):
         log.debug(f"channelList: {channelList}")
         if channelList:
             app_mode: AppModes = getAppMode()
+
             def selectedChannelCallback(selectedElement: Union[None, NVDAObject]) -> None:
                 nonlocal app_mode
                 if not selectedElement:
@@ -99,27 +101,51 @@ class AppModule(appModuleHandler.AppModule):
                         # If the channel is already selectioned, ignore the request to select it
                         if self.current_channel_rattrapage == selectedElement:
                             return
-                        scroll_and_click_on_element(self.current_channel_rattrapage, scrollable_container=scroll_area, y_offset=-20)
+                        scroll_and_click_on_element(
+                            element=self.current_channel_rattrapage,
+                            scrollable_container=scroll_area,
+                            y_offset=-20,
+                        )
                     self.current_channel_rattrapage = selectedElement
-                    scroll_and_click_on_element(selectedElement, max_attempts=30, scrollable_container=scroll_area, y_offset=-20)
+                    scroll_and_click_on_element(
+                        element=selectedElement,
+                        max_attempts=30,
+                        scrollable_container=scroll_area,
+                        y_offset=-20,
+                    )
                     # TODO: Open a list of programs with their name, time of diffusion, and description
-                    raise NotImplementedError("We cannot list programs yet in Rattrapage mode")
+                    raise NotImplementedError(
+                        "We cannot list programs yet in Rattrapage mode"
+                    )
                 elif app_mode == AppModes.DIRECT:
-                    scroll_to_element(selectedElement, max_attempts=30, scrollable_container=scroll_area)
+                    scroll_to_element(
+                        element=selectedElement,
+                        max_attempts=30,
+                        scrollable_container=scroll_area,
+                    )
                     # TODO: Prompt the user to know if they want to watch the channel, or record it
                     raise NotImplementedError("We cannot select a channel yet in Direct mode")
                 else:
-                    raise ValueError(f"{app_mode} is not a supported operation.\nThe only supported operations are AppModes.RATTRAPAGE et AppModes.DIRECT")
+                    raise ValueError(
+                        f"{app_mode} is not a supported operation.\n"
+                        "The only supported operations are AppModes.RATTRAPAGE et AppModes.DIRECT"
+                    )
 
             log.debug("Channel list focused")
             ui.message("Liste des chaines sélectionnée")
-            mainFrame.prePopup() # type: ignore - prePopup is known and defined
-            dialog = ElementsListDialog(mainFrame, channelList, callback=selectedChannelCallback, title="Liste des chaines")
+            mainFrame.prePopup()  # type: ignore - prePopup is known and defined
+            dialog = ElementsListDialog(
+                mainFrame,
+                channelList,
+                callback=selectedChannelCallback,
+                title="Liste des chaines",
+            )
             dialog.Show()
-            mainFrame.postPopup() # type: ignore - postPopup is known and defined
+            mainFrame.postPopup()  # type: ignore - postPopup is known and defined
         else:
             ui.message("Une erreur fatale s'est produite lors du chargement de la liste des chaînes")
             log.error("Could not focus channel list: Channel list not found")
+
 
 def getModeButtonList() -> Optional[List[NVDAObject]]:
     """
@@ -130,9 +156,9 @@ def getModeButtonList() -> Optional[List[NVDAObject]]:
         or None if the expected element hierarchy is not found.
     """
     window = api.getForegroundObject()
-    
+
     pane = window.children[3].children[3]
-    
+
     mode_buttons = []
     for pane_child in pane.children:
         for button in pane_child.children:
@@ -141,6 +167,7 @@ def getModeButtonList() -> Optional[List[NVDAObject]]:
                 break
 
     return mode_buttons
+
 
 def getChannelButtonList() -> Optional[List[NVDAObject]]:
     """
@@ -152,10 +179,11 @@ def getChannelButtonList() -> Optional[List[NVDAObject]]:
     elem = find_element_by_size(target_width=CHANNEL_LIST_WIDTH)
     if elem:
         for child in elem.children:
-            if child.childCount >= 18: # type: ignore - childCount is always defined for NVDAObject
+            if child.childCount >= 18:  # type: ignore - childCount is always defined for NVDAObject
                 channel_list = child.children
                 return [channel.children[3].children[1] for channel in channel_list]
     return None
+
 
 def getAppMode() -> AppModes:
     """
@@ -174,13 +202,13 @@ def getAppMode() -> AppModes:
 
     right_most = buttons[0]
     for button in buttons[1:]:
-        if button.location.left > right_most.location.left:
+        if button.location.left > right_most.location.left:  # type: ignore
             right_most = button
 
     if right_most.name == "DIRECT":
         return AppModes.DIRECT
     elif right_most.name == "RATTRAPAGE":
         return AppModes.RATTRAPAGE
-    
-    log.debugWarning(f"We didn't find DIRECT or RATTRAPAGE but instead {right_most.name}")
+
+    log.debugWarning(f"We didn't find DIRECT or RATTRAPAGE but {right_most.name}")
     return AppModes.OTHER
