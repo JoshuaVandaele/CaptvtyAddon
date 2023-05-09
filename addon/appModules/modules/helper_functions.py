@@ -34,7 +34,9 @@ def setFocus(obj: NVDAObject) -> None:
     api.processPendingEvents()
 
 
-def find_element_by_size(target_width: Optional[int] = None, target_height: Optional[int] = None) -> Optional[Union[IAccessible, NVDAObject]]:
+def find_element_by_size(
+    target_width: Optional[int] = None, target_height: Optional[int] = None
+) -> Optional[Union[IAccessible, NVDAObject]]:
     """
     Finds and returns an object with the specified width and/or height from the current foreground object's descendants.
 
@@ -48,12 +50,16 @@ def find_element_by_size(target_width: Optional[int] = None, target_height: Opti
     fg = api.getForegroundObject()
     for obj in fg.recursiveDescendants:  # type: ignore - recursiveDescendants is defined for fg
         left, top, width, height = obj.location
-        if (not target_width or width == target_width) and (not target_height or height == target_height):
+        if (not target_width or width == target_width) and (
+            not target_height or height == target_height
+        ):
             return obj
     return None
 
 
-def click_element_with_mouse(element: Union[NVDAObject, IAccessible], x_offset: int = 0, y_offset: int = 0) -> None:
+def click_element_with_mouse(
+    element: Union[NVDAObject, IAccessible], x_offset: int = 0, y_offset: int = 0
+) -> None:
     """
     Clicks the specified element using the mouse with the specified x and y offset.
 
@@ -81,7 +87,7 @@ def scroll_element_with_mouse(
     x: Optional[int] = None,  # type: ignore - x is not obscured by a redefinition
     y: Optional[int] = None,  # type: ignore - y is not obscured by a redefinition
     x_offset: Optional[int] = 0,
-    y_offset: Optional[int] = 0
+    y_offset: Optional[int] = 0,
 ) -> None:
     """
     Scrolls the specified element using the mouse wheel with the specified delta and x, y offsets.
@@ -108,7 +114,9 @@ def scroll_element_with_mouse(
     winUser.mouse_event(winUser.MOUSEEVENTF_WHEEL, x, y, delta, 0)
 
 
-def where_is_element_trespassing(element: Union[IAccessible, NVDAObject], window: Union[IAccessible, NVDAObject]) -> Optional[str]:
+def where_is_element_trespassing(
+    element: Union[IAccessible, NVDAObject], window: Union[IAccessible, NVDAObject]
+) -> Optional[str]:
     """
     Determines which side of a window an element is trespassing on, if any.
 
@@ -137,10 +145,16 @@ def where_is_element_trespassing(element: Union[IAccessible, NVDAObject], window
     window_right = window_location.left + window_location.width
     window_bottom = window_location.top + window_location.height
 
-    log.info(f"element {element_location}, bottom {element_bottom}, right {element_right}")
+    log.info(
+        f"element {element_location}, bottom {element_bottom}, right {element_right}"
+    )
     log.info(f"window {window_location}, bottom {window_bottom}, right {window_right}")
-    is_inside_horizontal = element_location.left >= window_location.left and element_right <= window_right
-    is_inside_vertical = element_location.top >= window_location.top and element_bottom <= window_bottom
+    is_inside_horizontal = (
+        element_location.left >= window_location.left and element_right <= window_right
+    )
+    is_inside_vertical = (
+        element_location.top >= window_location.top and element_bottom <= window_bottom
+    )
 
     if is_inside_horizontal and is_inside_vertical:
         return None
@@ -155,7 +169,12 @@ def where_is_element_trespassing(element: Union[IAccessible, NVDAObject], window
     raise AssertionError("Bounds must be within two dimensions")
 
 
-def scroll_to_element(element: Union[IAccessible, NVDAObject], scroll_delta: int = 120, max_attempts: int = 10, scrollable_container: Optional[Union[IAccessible, NVDAObject]] = None) -> None:
+def scroll_to_element(
+    element: Union[IAccessible, NVDAObject],
+    scroll_delta: int = 120,
+    max_attempts: int = 10,
+    scrollable_container: Optional[Union[IAccessible, NVDAObject]] = None,
+) -> None:
     """
     Scrolls the current foreground window to bring the specified element into view.
 
@@ -187,7 +206,9 @@ def scroll_to_element(element: Union[IAccessible, NVDAObject], scroll_delta: int
             scroll_element_with_mouse(scrollable_container, delta=-scroll_delta)
 
 
-def find_scrollable_container(element: Union[IAccessible, NVDAObject]) -> Optional[Union[IAccessible, NVDAObject]]:
+def find_scrollable_container(
+    element: Union[IAccessible, NVDAObject]
+) -> Optional[Union[IAccessible, NVDAObject]]:
     """
     Finds the nearest scrollable container that contains the given element.
 
@@ -217,7 +238,9 @@ def find_scrollable_container(element: Union[IAccessible, NVDAObject]) -> Option
     return None
 
 
-def find_element_by_name(root: Union[IAccessible, NVDAObject], name: str) -> Optional[NVDAObject]:
+def find_element_by_name(
+    root: Union[IAccessible, NVDAObject], name: str
+) -> Optional[NVDAObject]:
     """
     Find an element with a specific name in the UI tree starting from the given root.
 
@@ -239,7 +262,14 @@ def find_element_by_name(root: Union[IAccessible, NVDAObject], name: str) -> Opt
     return None
 
 
-def scroll_and_click_on_element(element: Union[IAccessible, NVDAObject], scroll_delta: int = 120, max_attempts: int = 10, scrollable_container: Optional[Union[IAccessible, NVDAObject]] = None, x_offset: int = 0, y_offset: int = 0) -> None:
+def scroll_and_click_on_element(
+    element: Union[IAccessible, NVDAObject],
+    scroll_delta: int = 120,
+    max_attempts: int = 10,
+    scrollable_container: Optional[Union[IAccessible, NVDAObject]] = None,
+    x_offset: int = 0,
+    y_offset: int = 0,
+) -> None:
     """
     Scrolls the current foreground window to bring the specified element into view and then clicks on it.
 

@@ -7,7 +7,14 @@ from NVDAObjects.IAccessible import IAccessible
 
 
 class ElementsListDialog(wx.Frame):
-    def __init__(self, parent: wx.Window, elements: List[Any], callback: Optional[Callable[[Any], None]] = None, title: str = "Liste d'éléments", list_label: str = "Sélectionnez un élément"):
+    def __init__(
+        self,
+        parent: wx.Window,
+        elements: List[Any],
+        callback: Optional[Callable[[Any], None]] = None,
+        title: str = "Liste d'éléments",
+        list_label: str = "Sélectionnez un élément",
+    ):
         """
         A custom wx.Frame dialog that displays a list of elements for the user to select from.
 
@@ -19,7 +26,7 @@ class ElementsListDialog(wx.Frame):
             list_label (str: optional): The label of the list. Defaults to "Sélectionnez un élément"
         """
         super(ElementsListDialog, self).__init__(parent, title=title)
-        
+
         self.list_label = list_label
 
         self.elements = elements
@@ -48,16 +55,27 @@ class ElementsListDialog(wx.Frame):
         label = wx.StaticText(self, wx.ID_ANY, self.list_label)
         mainSizer.Add(label, flag=wx.LEFT | wx.RIGHT | wx.TOP, border=8)
 
-        self.elementsListBox = wx.ListBox(self, choices=self.element_names, style=wx.LB_SINGLE)
-        self.elementsListBox.SetSelection(0)  # Set the default selection as the first one in the list
-        mainSizer.Add(self.elementsListBox, proportion=1, flag=wx.EXPAND | wx.LEFT | wx.RIGHT | wx.TOP, border=8)
+        self.elementsListBox = wx.ListBox(
+            self, choices=self.element_names, style=wx.LB_SINGLE
+        )
+        self.elementsListBox.SetSelection(
+            0
+        )  # Set the default selection as the first one in the list
+        mainSizer.Add(
+            self.elementsListBox,
+            proportion=1,
+            flag=wx.EXPAND | wx.LEFT | wx.RIGHT | wx.TOP,
+            border=8,
+        )
 
         buttons = guiHelper.ButtonHelper(wx.HORIZONTAL)
         okButton = buttons.addButton(self, wx.ID_OK, label="OK")
         okButton.Bind(wx.EVT_BUTTON, self.onOk)
         cancelButton = buttons.addButton(self, wx.ID_CANCEL, label="Annuler")
         cancelButton.Bind(wx.EVT_BUTTON, self.Close)
-        mainSizer.Add(buttons.sizer, flag=wx.EXPAND | wx.LEFT | wx.RIGHT | wx.BOTTOM, border=8)
+        mainSizer.Add(
+            buttons.sizer, flag=wx.EXPAND | wx.LEFT | wx.RIGHT | wx.BOTTOM, border=8
+        )
 
         self.elementsListBox.Bind(wx.EVT_KEY_DOWN, self.onKeyPress)
 
