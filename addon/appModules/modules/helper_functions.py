@@ -1,9 +1,11 @@
 from enum import IntEnum, auto
-from typing import TYPE_CHECKING, Optional, Union
+from typing import TYPE_CHECKING, List, Optional, Tuple, Union
 
 import api
 import controlTypes
+import keyboardHandler
 import winUser
+from controlTypes import Role
 from logHandler import log
 from NVDAObjects import NVDAObject
 from NVDAObjects.IAccessible import IAccessible
@@ -17,6 +19,20 @@ class AppModes(IntEnum):
 
 if TYPE_CHECKING:
     from locationHelper import RectLTWH
+
+
+def fake_typing(keys: List[str]) -> None:
+    """
+    Simulate typing the specified keys using NVDA's keyboardHandler.
+
+    Args:
+        keys (List[str]): A list of keys to simulate typing.
+
+    Returns:
+        None
+    """
+    for key in keys:
+        keyboardHandler.KeyboardInputGesture.fromName(key).send()
 
 
 def setFocus(obj: NVDAObject) -> None:
@@ -48,13 +64,26 @@ def find_element_by_size(
         An object with the specified width and/or height, or None if not found.
     """
     fg = api.getForegroundObject()
-    for obj in fg.recursiveDescendants:  # type: ignore - recursiveDescendants is defined for fg
+    for obj in fg.recursiveDescendants:  # type: ignore - recursiveDescendants is defined for IAccessible and NVDAObject
         left, top, width, height = obj.location
         if (not target_width or width == target_width) and (
             not target_height or height == target_height
         ):
             return obj
     return None
+
+
+def click_position_with_mouse(position: Tuple[int, int]) -> None:
+    """
+    Clicks the specified position using the mouse.
+
+    Args:
+        position (Tuple[int, int]): Position to click in
+    """
+    winUser.setCursorPos(*position)
+
+    winUser.mouse_event(winUser.MOUSEEVENTF_LEFTDOWN, *position, 0, 0)
+    winUser.mouse_event(winUser.MOUSEEVENTF_LEFTUP, *position, 0, 0)
 
 
 def click_element_with_mouse(
@@ -234,30 +263,6 @@ def find_scrollable_container(
                 ]:
                     return container_child
         container = container.parent
-
-    return None
-
-
-def find_element_by_name(
-    root: Union[IAccessible, NVDAObject], name: str
-) -> Optional[NVDAObject]:
-    """
-    Find an element with a specific name in the UI tree starting from the given root.
-
-    Args:
-        root (Union[IAccessible, NVDAObject]): The root object to start the search from.
-        name (str): The name of the element to find.
-
-    Returns:
-        NVDAObject: The found element, or None if the element is not found.
-    """
-    if root.name == name:
-        return root
-
-    for child in root.children:
-        found_element = find_element_by_name(child, name)
-        if found_element:
-            return found_element
 
     return None
 
