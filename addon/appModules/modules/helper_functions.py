@@ -144,7 +144,9 @@ def scroll_element_with_mouse(
 
 
 def where_is_element_trespassing(
-    element: Union[IAccessible, NVDAObject], window: Union[IAccessible, NVDAObject]
+    element: Union[IAccessible, NVDAObject],
+    window: Union[IAccessible, NVDAObject],
+    bounds_offset: Tuple[int, int, int, int] = (0, 0, 0, 0),
 ) -> Optional[str]:
     """
     Determines which side of a window an element is trespassing on, if any.
@@ -152,6 +154,7 @@ def where_is_element_trespassing(
     Args:
         element (Union[IAccessible, NVDAObject]): The element to check.
         window (Union[IAccessible, NVDAObject]): The window to check.
+        bounds_offset (Tuple[int, int, int, int], optional): Offsets for detecting the left, right, top and bottom of the element.
 
     Returns:
         A string indicating the side of the window the element is trespassing on (i.e. "above", "below", "left", "right"),
@@ -169,8 +172,10 @@ def where_is_element_trespassing(
         log.error("window.location is unbound")
         return
 
-    element_right = element_location.left + element_location.width
-    element_bottom = element_location.top + element_location.height
+    element_left = element_location.left + bounds_offset[0]
+    element_right = element_location.left + element_location.width + bounds_offset[1]
+    element_bottom = element_location.top + element_location.height + bounds_offset[2]
+    element_top = element_location.top + bounds_offset[3]
     window_right = window_location.left + window_location.width
     window_bottom = window_location.top + window_location.height
 
@@ -179,19 +184,19 @@ def where_is_element_trespassing(
     )
     log.info(f"window {window_location}, bottom {window_bottom}, right {window_right}")
     is_inside_horizontal = (
-        element_location.left >= window_location.left and element_right <= window_right
+        element_left >= window_location.left and element_right <= window_right
     )
     is_inside_vertical = (
-        element_location.top >= window_location.top and element_bottom <= window_bottom
+        element_top >= window_location.top and element_bottom <= window_bottom
     )
 
     if is_inside_horizontal and is_inside_vertical:
         return None
-    elif element_location.top > window_bottom:
+    elif element_top > window_bottom:
         return "below"
     elif element_bottom < window_location.top:
         return "above"
-    elif element_location.left > window_right:
+    elif element_left > window_right:
         return "right"
     elif element_right < window_location.left:
         return "left"
@@ -203,6 +208,7 @@ def scroll_to_element(
     scroll_delta: int = 120,
     max_attempts: int = 10,
     scrollable_container: Optional[Union[IAccessible, NVDAObject]] = None,
+    bounds_offset: Tuple[int, int, int, int] = (0, 0, 0, 0),
 ) -> None:
     """
     Scrolls the current foreground window to bring the specified element into view.
@@ -212,6 +218,7 @@ def scroll_to_element(
         scroll_delta (int, optional): The delta for the mouse wheel scrolling. Defaults to 120.
         max_attempts (int, optional): The maximum number of scroll attempts. Defaults to 10.
         scrollable_container: (Union[IAccessible, NVDAObject], optional): Container in which we will scroll.
+        bounds_offset (Tuple[int, int, int, int], optional): Offsets for detecting the left, right, top and bottom of the element.
 
     Returns:
         None
@@ -225,7 +232,7 @@ def scroll_to_element(
         return
 
     for _ in range(max_attempts):
-        trespassing_side = where_is_element_trespassing(element, window)
+        trespassing_side = where_is_element_trespassing(element, window, bounds_offset)
 
         log.info(f"trespassing: {trespassing_side}")
 

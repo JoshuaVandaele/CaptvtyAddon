@@ -277,6 +277,7 @@ class AppModule(appModuleHandler.AppModule):
             element=selectedElement,
             max_attempts=30,
             scrollable_container=scroll_area,
+            bounds_offset=(0, 0, 250, 250),
         )
         if mainFrame:
             mainFrame.prePopup()
