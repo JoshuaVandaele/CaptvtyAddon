@@ -25,7 +25,7 @@ addon_info = {
     # Translators: Long description to be shown for this add-on on add-on information from add-ons manager
     "addon_description": _("""Addon permettant de rendre Captvty plus accessible"""),
     # version
-    "addon_version": "0.0",
+    "addon_version": "0.1",
     # Author(s)
     "addon_author": "Joshua Vandaele <folfyblu@gmail.com>",
     # URL for the add-on documentation support
@@ -33,7 +33,7 @@ addon_info = {
     # URL for the add-on repository where the source code can be found
     "addon_sourceURL": "https://github.com/FolfyBlue/CaptvtyAddon",
     # Documentation file name
-    "addon_docFileName": "readme.html",
+    "addon_docFileName": "README.md",
     # Minimum NVDA version supported (e.g. "2018.3.0", minor version is optional)
     "addon_minimumNVDAVersion": None,
     # Last NVDA version supported/tested (e.g. "2018.4.0", ideally more recent than minimum version)
@@ -57,7 +57,10 @@ addon_info = {
 # For more information on SCons Glob expressions please take a look at:
 # https://scons.org/doc/production/HTML/scons-user/apd.html
 from os.path import join as join_path
-pythonSources = [join_path("addon", "appModules", "*.py"),]
+
+pythonSources = [
+    join_path("addon", "appModules", "*.py"),
+]
 
 # Files that contain strings for translation. Usually your python sources
 i18nSources = pythonSources + ["buildVars.py"]
