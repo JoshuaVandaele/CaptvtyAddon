@@ -1,17 +1,25 @@
+import time
 from typing import Callable, List, Optional, Union
 
 import api
 import appModuleHandler
 import controlTypes
+import core
+import speech
 import ui
 from gui import mainFrame
 from logHandler import log
 from NVDAObjects import NVDAObject
 from scriptHandler import script
+from speech.priorities import SpeechPriority
+from wx import DateTime
 
+from .modules.date_picker import DateRangeDialog
 from .modules.helper_functions import (
     AppModes,
     click_element_with_mouse,
+    click_position_with_mouse,
+    fake_typing,
     find_element_by_size,
     scroll_and_click_on_element,
     scroll_to_element,
@@ -34,9 +42,11 @@ class AppModule(appModuleHandler.AppModule):
     def __init__(self, processID, appName=None):
         super().__init__(processID, appName)
         self.current_channel_rattrapage = None
+        self.window = None
 
     def event_gainFocus(self, obj: NVDAObject, nextHandler: Callable) -> None:
         """Handles the gainFocus event."""
+        self.window = api.getForegroundObject()
         app_mode: AppModes = getAppMode()
         if app_mode == AppModes.DIRECT:
             ui.message("Menu direct sélectionné")
@@ -137,10 +147,115 @@ class AppModule(appModuleHandler.AppModule):
             )
             log.error("Could not focus channel list: Channel list not found")
 
+    def _directProgrammerEnregistrement(self, selectedElement):
+        def _datepick_callback(start_date: DateTime, end_date: DateTime) -> None:
+            start_date_str = start_date.Format("%Y-%m-%d %H:%M:%S")
+            end_date_str = end_date.Format("%Y-%m-%d %H:%M:%S")
+
+            log.debug(f"Start Date and Time: {start_date_str}")
+            log.debug(f"End Date and Time: {end_date_str}")
+
+            click_element_with_mouse(
+                element=selectedElement,
+                y_offset=DIRECT_CHANNEL_LIST_VIEW_BUTTON_OFFSET_Y,
+                x_offset=DIRECT_CHANNEL_LIST_RECORD_BUTTON_OFFSET_X,
+            )
+
+            if not self.window:
+                log.error("Could not find self.window")
+                return
+
+            window_location = self.window._get_location()
+
+            window_horizontal_center = window_location.left + window_location.width // 2
+
+            window_vertical_center = window_location.top + window_location.height // 2
+
+            pos_ok_button = (
+                window_horizontal_center - 80,
+                window_vertical_center + 160,
+            )
+
+            pos_button_enregistrer = (
+                window_horizontal_center,
+                window_vertical_center - 90,
+            )
+
+            datepicker_field_positions = (
+                window_horizontal_center - 70,
+                window_horizontal_center - 45,
+                window_horizontal_center - 15,
+                window_horizontal_center + 10,
+                window_horizontal_center + 50,
+            )  # Format: HH:MM dd/mm/yyyy
+            from_datepicker_vertical_center = window_vertical_center - 50
+            from_dates = (
+                f"{start_date.hour:02}",
+                f"{start_date.minute:02}",
+                f"{start_date.day:02}",
+                f"{start_date.month:02}",
+                f"{start_date.year:04}",
+            )
+
+            enregistrement_dialog_datepicker_vertical_center = (
+                window_vertical_center + 30
+            )
+            to_dates = (
+                f"{end_date.hour:02}",
+                f"{end_date.minute:02}",
+                f"{end_date.day:02}",
+                f"{end_date.month:02}",
+                f"{end_date.year:04}",
+            )
+
+            def _interact_with_enregistrement_dialog():
+                click_position_with_mouse(pos_button_enregistrer)
+                for i in range(len(from_dates)):
+                    click_position_with_mouse(
+                        (
+                            datepicker_field_positions[i],
+                            from_datepicker_vertical_center,
+                        )
+                    )
+                    fake_typing(list(from_dates[i]))
+
+                    click_position_with_mouse(
+                        (
+                            datepicker_field_positions[i],
+                            enregistrement_dialog_datepicker_vertical_center,
+                        )
+                    )
+                    fake_typing(list(to_dates[i]))
+                click_position_with_mouse(pos_ok_button)
+
+                def _onCompletion():
+                    speech.cancelSpeech()
+                    ui.message(
+                        "Enregistrement programmé", speechPriority=SpeechPriority.NOW
+                    )
+
+                # There is a delay between doing actions and them being said out loud
+                core.callLater(100, _onCompletion)
+
+            # We need to wait for the short fade-in animation to be over
+            core.callLater(100, _interact_with_enregistrement_dialog)
+
+        if mainFrame:
+            mainFrame.prePopup()
+            dialog = DateRangeDialog(
+                mainFrame,
+                callback=_datepick_callback,
+                title="Paramêtrer l'enregistrement",
+            )
+            dialog.Show()
+            mainFrame.postPopup()
+
     def _directSelectViewOptionCallback(
         self, selectedElement: NVDAObject, selectedOption: str
     ):
-        if selectedOption == "Visionner en direct avec le lecteur interne":
+        if selectedOption == "Programmer l'enregistrement":
+            self._directProgrammerEnregistrement(selectedElement)
+        elif selectedOption == "Visionner en direct avec le lecteur interne":
             click_element_with_mouse(
                 element=selectedElement,
                 y_offset=DIRECT_CHANNEL_LIST_VIEW_BUTTON_OFFSET_Y,
@@ -151,20 +266,13 @@ class AppModule(appModuleHandler.AppModule):
                 y_offset=DIRECT_CHANNEL_LIST_VIEW_BUTTON_OFFSET_Y,
                 x_offset=DIRECT_CHANNEL_LIST_VIDEOPLAYER_BUTTON_OFFSET_X,
             )
-        elif selectedOption == "Programmer l'enregistrement":
-            # TODO: Prompt the user for it and then manually apply the settings, since this menu is not accessible
-            click_element_with_mouse(
-                element=selectedElement,
-                y_offset=DIRECT_CHANNEL_LIST_VIEW_BUTTON_OFFSET_Y,
-                x_offset=DIRECT_CHANNEL_LIST_RECORD_BUTTON_OFFSET_X,
-            )
         else:
             raise NotImplementedError
 
     def _directSelectedChannelCallback(self, selectedElement: NVDAObject):
         scroll_area = (
-            selectedElement.parent.parent.parent
-        )  # type:ignore - Channels are assumed to always be in the channel list
+            selectedElement.parent.parent.parent  # type:ignore - Channels are assumed to always be in the channel list
+        )
         scroll_to_element(
             element=selectedElement,
             max_attempts=30,
@@ -192,8 +300,8 @@ class AppModule(appModuleHandler.AppModule):
 
     def _rattrapageSelectedChannelCallback(self, selectedElement: NVDAObject):
         scroll_area = (
-            selectedElement.parent.parent.parent
-        )  # type:ignore - Channels are assumed to always be in the channel list
+            selectedElement.parent.parent.parent  # type:ignore - Channels are assumed to always be in the channel list
+        )
 
         if self.current_channel_rattrapage:
             # If the channel is already selectioned, ignore the request to select it
