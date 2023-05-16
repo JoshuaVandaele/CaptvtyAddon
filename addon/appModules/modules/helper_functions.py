@@ -231,15 +231,25 @@ def scroll_to_element(
         log.debugWarning("Could not find a scrollable container")
         return
 
+    el_location = element._get_location()
+    has_not_moved_counter = 0
     for _ in range(max_attempts):
         trespassing_side = where_is_element_trespassing(element, window, bounds_offset)
-
         log.info(f"trespassing: {trespassing_side}")
 
         if trespassing_side == "above":
             scroll_element_with_mouse(scrollable_container, delta=scroll_delta)
         elif trespassing_side == "below":
             scroll_element_with_mouse(scrollable_container, delta=-scroll_delta)
+        new_el_location = element._get_location()
+        if new_el_location == el_location:
+            has_not_moved_counter += 1
+            # We cannot scroll anymore, our actions are useless
+            if has_not_moved_counter == 10:
+                return
+        else:
+            has_not_moved_counter = 0
+        el_location = new_el_location
 
 
 def find_scrollable_container(
@@ -279,6 +289,7 @@ def scroll_and_click_on_element(
     scroll_delta: int = 120,
     max_attempts: int = 10,
     scrollable_container: Optional[Union[IAccessible, NVDAObject]] = None,
+    bounds_offset: Tuple[int, int, int, int] = (0, 0, 0, 0),
     x_offset: int = 0,
     y_offset: int = 0,
 ) -> None:
@@ -290,11 +301,18 @@ def scroll_and_click_on_element(
         scroll_delta (int, optional): The delta for the mouse wheel scrolling. Defaults to 120.
         max_attempts (int, optional): The maximum number of scroll attempts. Defaults to 10.
         scrollable_container: (Union[IAccessible, NVDAObject], optional): Container in which we will scroll.
+        bounds_offset (Tuple[int, int, int, int], optional): Offsets for detecting the left, right, top and bottom of the element.
         x_offset (int, optional): The x offset to add to the center of the element. Defaults to 0.
         y_offset (int, optional): The y offset to add to the center of the element. Defaults to 0.
 
     Returns:
         None
     """
-    scroll_to_element(element, scroll_delta, max_attempts, scrollable_container)
+    scroll_to_element(
+        element=element,
+        scroll_delta=scroll_delta,
+        max_attempts=max_attempts,
+        scrollable_container=scrollable_container,
+        bounds_offset=bounds_offset,
+    )
     click_element_with_mouse(element, x_offset, y_offset)

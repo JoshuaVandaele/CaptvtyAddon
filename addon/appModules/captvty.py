@@ -1,4 +1,4 @@
-from typing import Callable, List, Optional, Union
+from typing import TYPE_CHECKING, Callable, List, Optional, Union
 
 import api
 import appModuleHandler
@@ -9,6 +9,7 @@ import ui
 from gui import mainFrame
 from logHandler import log
 from NVDAObjects import NVDAObject
+from NVDAObjects.IAccessible import IAccessible
 from scriptHandler import script
 from speech.priorities import SpeechPriority
 from wx import DateTime
@@ -24,6 +25,7 @@ from .modules.helper_functions import (
     scroll_to_element,
 )
 from .modules.list_elements import ElementsListDialog
+from .modules.program import Program
 
 # Constants
 # Width of the channel list on the left side of the window, this constant is used to locate it on screen
@@ -35,6 +37,9 @@ DIRECT_CHANNEL_LIST_RECORD_BUTTON_OFFSET_X = 185
 # Amount of buttons at the top left with different modes for the app.
 # There 3 modes at the time of writing are: Direct, Rattrapage, and Telechargement Manuel
 MODE_BUTTONS_COUNT = 3
+# Number of elements to skip from the program list
+# due to them not being elements of the list but header controls for the list
+RATTRAPAGE_PROGRAM_LIST_HEADER_CONTROL_COUNT = 7
 
 
 class AppModule(appModuleHandler.AppModule):
@@ -304,9 +309,6 @@ class AppModule(appModuleHandler.AppModule):
         )
 
         if self.current_channel_rattrapage:
-            # If the channel is already selectioned, ignore the request to select it
-            if self.current_channel_rattrapage == selectedElement:
-                return
             scroll_and_click_on_element(
                 element=self.current_channel_rattrapage,
                 scrollable_container=scroll_area,
@@ -319,8 +321,79 @@ class AppModule(appModuleHandler.AppModule):
             scrollable_container=scroll_area,
             y_offset=-20,
         )
-        # TODO: Open a list of programs with their name, time of diffusion, and description
-        raise NotImplementedError("We cannot list programs yet in Rattrapage mode")
+        if not self.window:
+            raise NotImplementedError
+
+        click_element_with_mouse(self.window)
+
+        def _program_list():
+            if not mainFrame:
+                raise NotImplementedError
+            programList = api.getFocusObject()
+            programsCount = RATTRAPAGE_PROGRAM_LIST_HEADER_CONTROL_COUNT
+
+            def update_program_list(dialog: ElementsListDialog):
+                nonlocal programsCount
+                if not dialog.IsShown():
+                    return
+                childCount = programList._get_childCount()
+                if childCount > programsCount:
+                    speech.cancelSpeech()
+                    ui.message(
+                        "Mise à jour de la liste des programmes",
+                        speechPriority=SpeechPriority.NOW,
+                    )
+                    children = programList._get_children()
+                    dialog.appendElements(children[programsCount:childCount])
+                    programsCount = childCount
+                    speech.cancelSpeech()
+                    ui.message(
+                        "Liste des programmes mise à jour.",
+                        speechPriority=SpeechPriority.NOW,
+                    )
+                core.callLater(20, lambda: update_program_list(dialog))
+
+            def get_program_info(
+                element: Union[NVDAObject, IAccessible]
+            ) -> Union[str, None]:
+                try:
+                    program = Program(element.name)
+                    program_info = f"{program.name} | Durée: {program.duration} | Sommaire: {program.summary}"
+                    return program_info
+                except (
+                    AttributeError,
+                    IndexError,
+                ):  # The element is not a valid program
+                    return None
+
+            def selected_program_callback(
+                selectedProgramElement: Union[IAccessible, NVDAObject]
+            ) -> None:
+                scroll_and_click_on_element(
+                    element=selectedProgramElement,
+                    scrollable_container=selectedProgramElement.parent,
+                    max_attempts=10000,
+                    bounds_offset=(0, 0, 450, 450),  # TODO: Make this work lol
+                )
+                click_element_with_mouse(selectedProgramElement)  # Double click
+
+            mainFrame.prePopup()
+            dialog = ElementsListDialog(
+                parent=mainFrame,
+                elements=[],
+                element_name_getter=get_program_info,
+                callback=selected_program_callback,
+                title="Liste des programmes",
+            )
+            dialog.Show()
+            ui.message("Chargement de la liste des programmes")
+            update_program_list(dialog)
+            mainFrame.postPopup()
+
+        speech.cancelSpeech()
+        ui.message("Chargement des programmes", speechPriority=SpeechPriority.NOW)
+        # Wait for the focus to be passed on to the program list
+        core.callLater(100, _program_list)
 
 
 def getModeButtonList() -> Optional[List[NVDAObject]]:
