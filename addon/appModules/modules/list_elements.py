@@ -156,9 +156,7 @@ class ElementsListDialog(wx.Frame):
 
         if self.searchTimer.IsRunning():
             self.searchTimer.Stop()
-            self.searchTimer.Start(self.search_delay, oneShot=True)
-        else:
-            self.searchTimer.Start(self.search_delay, oneShot=True)
+        self.searchTimer.Start(self.search_delay, oneShot=True)
 
     def onSearch(self, event: Union[wx.Event, None] = None) -> None:
         """
@@ -226,6 +224,20 @@ class ElementsListDialog(wx.Frame):
             self.selectedElement = self.elements[self.element_indices[selectedIndex]]
 
         self.callback(self.selectedElement)
+
+    def Close(self, event: Union[wx.Event, None] = None) -> None:
+        """
+        Handles the close event of the dialog.
+
+        Args:
+            event (wx.Event): The event associated with the close action. Defaults to None.
+
+        Returns:
+            None
+        """
+        if self.searchTimer.IsRunning():
+            self.searchTimer.Stop()
+        super().Close()
 
     def appendElement(self, element: Any) -> None:
         """Appends an element to the ListBox.
