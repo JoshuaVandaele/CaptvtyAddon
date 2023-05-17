@@ -7,7 +7,18 @@ from NVDAObjects.IAccessible import IAccessible
 
 
 class VirtualList(wx.ListCtrl):
+    """
+    A custom wx.ListCtrl that supports virtual mode.
+    """
+
     def __init__(self, parent, data):
+        """
+        Initialize the VirtualList instance.
+
+        Args:
+            parent (wx.Window): The parent window for the list.
+            data (List[Any]): A list of data to display in the list.
+        """
         wx.ListCtrl.__init__(
             self, parent, style=wx.LC_REPORT | wx.LC_VIRTUAL | wx.LC_SINGLE_SEL
         )
@@ -18,12 +29,24 @@ class VirtualList(wx.ListCtrl):
         self.InsertColumn(0, "Name")
 
     def OnGetItemText(self, item, col):
+        """
+        Get the text for a specific item and column.
+
+        Args:
+            item (int): The index of the item.
+            col (int): The index of the column.
+
+        Returns:
+            str: The text for the specified item and column.
+        """
         if col == 0:
             return self.data[item]
 
 
 class ElementsListDialog(wx.Frame):
-    """A custom wx.Frame dialog that displays a list of elements for the user to select from."""
+    """
+    A custom wx.Frame dialog that displays a list of elements for the user to select from.
+    """
 
     def __init__(
         self,
@@ -46,8 +69,8 @@ class ElementsListDialog(wx.Frame):
             callback (Callable[[Any], None], optional): A callback function to be called when the user selects an element. Defaults to None.
             title (str, optional): The title of the dialog. Defaults to "Liste d'éléments".
             list_label (str, optional): The label of the list. Defaults to "Sélectionnez un élément".
-            max_displayed_elements (int, optional): The maximum number of elements to display.
-            search_delay (int, optional): Refresh the ElementsListDialog after the user stopped typing for n ms.
+            max_displayed_elements (int, optional): The maximum number of elements to display at once. Defaults to 100.
+            search_delay (int, optional): The delay in milliseconds before the search is performed after the user stops typing. Defaults to 500.
         """
         super(ElementsListDialog, self).__init__(parent, title=title)
 
@@ -91,7 +114,9 @@ class ElementsListDialog(wx.Frame):
             return element.name
 
     def _createLayout(self) -> None:
-        """Create and set the layout for the dialog."""
+        """
+        Create and set the layout for the dialog.
+        """
         mainSizer = wx.BoxSizer(wx.VERTICAL)
 
         label = wx.StaticText(self, wx.ID_ANY, self.list_label)
@@ -240,7 +265,8 @@ class ElementsListDialog(wx.Frame):
         super().Close()
 
     def appendElement(self, element: Any) -> None:
-        """Appends an element to the ListBox.
+        """
+        Appends an element to the ListBox.
 
         Args:
             element (Any): The element to append.
@@ -257,10 +283,11 @@ class ElementsListDialog(wx.Frame):
         self.onSearch()
 
     def appendElements(self, elements: List[Any]) -> None:
-        """Appends a list of element to the ListBox.
+        """
+        Appends a list of elements to the ListBox.
 
         Args:
-            elements (List[Any]): The element to append.
+            elements (List[Any]): The elements to append.
         """
         new_element_names = [
             self.element_name_getter(element) or str(element) for element in elements
@@ -276,7 +303,8 @@ class ElementsListDialog(wx.Frame):
         self.onSearch()
 
     def removeElement(self, index: int) -> None:
-        """Remove an element from the ListBox at the given index.
+        """
+        Remove an element from the ListBox at the given index.
 
         Args:
             index (int): The index of the element to remove.

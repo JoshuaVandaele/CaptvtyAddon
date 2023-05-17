@@ -385,6 +385,7 @@ class AppModule(appModuleHandler.AppModule):
                 element_name_getter=get_program_info,
                 callback=selected_program_callback,
                 title="Liste des programmes",
+                max_displayed_elements=50,
             )
             dialog.Show()
             ui.message("Chargement de la liste des programmes")
