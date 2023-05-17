@@ -6,6 +6,22 @@ from NVDAObjects import NVDAObject
 from NVDAObjects.IAccessible import IAccessible
 
 
+class VirtualList(wx.ListCtrl):
+    def __init__(self, parent, data):
+        wx.ListCtrl.__init__(
+            self, parent, style=wx.LC_REPORT | wx.LC_VIRTUAL | wx.LC_SINGLE_SEL
+        )
+        self.data = data
+        self.SetItemCount(len(data))
+
+        # Add columns
+        self.InsertColumn(0, "Name")
+
+    def OnGetItemText(self, item, col):
+        if col == 0:
+            return self.data[item]
+
+
 class ElementsListDialog(wx.Frame):
     """A custom wx.Frame dialog that displays a list of elements for the user to select from."""
 
@@ -18,6 +34,7 @@ class ElementsListDialog(wx.Frame):
         title: str = "Liste d'éléments",
         list_label: str = "Sélectionnez un élément",
         max_displayed_elements: int = 100,
+        search_delay: int = 500,
     ) -> None:
         """
         Initialize the ElementsListDialog instance.
@@ -30,17 +47,17 @@ class ElementsListDialog(wx.Frame):
             title (str, optional): The title of the dialog. Defaults to "Liste d'éléments".
             list_label (str, optional): The label of the list. Defaults to "Sélectionnez un élément".
             max_displayed_elements (int, optional): The maximum number of elements to display.
+            search_delay (int, optional): Refresh the ElementsListDialog after the user stopped typing for n ms.
         """
         super(ElementsListDialog, self).__init__(parent, title=title)
 
         self.list_label = list_label
-
+        self.search_delay = search_delay
         self.empty_list = not elements
         self.elements = elements or ["Liste vide"]
         self.element_name_getter = (
             element_name_getter or ElementsListDialog._get_element_name
         )
-
         self.element_names = [
             self.element_name_getter(element) or str(element)
             for element in self.elements
@@ -81,17 +98,16 @@ class ElementsListDialog(wx.Frame):
         mainSizer.Add(label, flag=wx.LEFT | wx.RIGHT | wx.TOP, border=8)
 
         self.searchCtrl = wx.SearchCtrl(self)
-        self.searchCtrl.Bind(wx.EVT_TEXT, self.onSearch)
+
+        self.searchTimer = wx.Timer(self)
+        self.Bind(wx.EVT_TIMER, self.onSearch, self.searchTimer)
+
         mainSizer.Add(
             self.searchCtrl, flag=wx.EXPAND | wx.LEFT | wx.RIGHT | wx.TOP, border=8
         )
 
-        self.elementsListBox = wx.ListBox(
-            self, choices=self.element_names, style=wx.LB_SINGLE
-        )
-        self.elementsListBox.SetSelection(
-            0
-        )  # Set the default selection as the first one in the list
+        self.elementsListBox = VirtualList(self, self.element_names)
+        self.elementsListBox.SetItemCount(len(self.element_names))
         mainSizer.Add(
             self.elementsListBox,
             proportion=1,
@@ -137,7 +153,12 @@ class ElementsListDialog(wx.Frame):
         else:
             event.Skip()
             return
-        self.onSearch(event)
+
+        if self.searchTimer.IsRunning():
+            self.searchTimer.Stop()
+            self.searchTimer.Start(self.search_delay, oneShot=True)
+        else:
+            self.searchTimer.Start(self.search_delay, oneShot=True)
 
     def onSearch(self, event: Union[wx.Event, None] = None) -> None:
         """
@@ -166,7 +187,8 @@ class ElementsListDialog(wx.Frame):
             self.element_indices = list(range(self.max_displayed_elements))
             matching_elements = self.element_names[: self.max_displayed_elements]
 
-        self.elementsListBox.Set(matching_elements)
+        self.elementsListBox.data = matching_elements
+        self.elementsListBox.SetItemCount(len(matching_elements))
 
     def onKeyPress(self, event: wx.KeyEvent) -> None:
         """
@@ -199,7 +221,7 @@ class ElementsListDialog(wx.Frame):
         self.Close()
         if not self.callback:
             return
-        selectedIndex = self.elementsListBox.GetSelection()
+        selectedIndex = self.elementsListBox.GetFirstSelected()
         if selectedIndex != -1:
             self.selectedElement = self.elements[self.element_indices[selectedIndex]]
 
@@ -238,6 +260,7 @@ class ElementsListDialog(wx.Frame):
         if self.empty_list:
             self.empty_list = False
             self.removeElement(0)
+
         self.onSearch()
 
     def removeElement(self, index: int) -> None:
@@ -246,6 +269,6 @@ class ElementsListDialog(wx.Frame):
         Args:
             index (int): The index of the element to remove.
         """
-        self.elementsListBox.Delete(index)
         self.elements.pop(index)
         self.element_names.pop(index)
+        self.onSearch()

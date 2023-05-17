@@ -334,7 +334,7 @@ class AppModule(appModuleHandler.AppModule):
 
             def update_program_list(dialog: ElementsListDialog):
                 nonlocal programsCount
-                if not dialog.IsShown():
+                if not dialog.IsActive():
                     return
                 childCount = programList._get_childCount()
                 if childCount > programsCount:
@@ -343,8 +343,9 @@ class AppModule(appModuleHandler.AppModule):
                         "Mise à jour de la liste des programmes",
                         speechPriority=SpeechPriority.NOW,
                     )
-                    children = programList._get_children()
-                    dialog.appendElements(children[programsCount:childCount])
+                    dialog.appendElements(
+                        programList.children[programsCount:childCount]
+                    )
                     programsCount = childCount
                     speech.cancelSpeech()
                     ui.message(
