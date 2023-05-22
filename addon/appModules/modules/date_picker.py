@@ -6,11 +6,28 @@ from wx.adv import EVT_DATE_CHANGED, EVT_TIME_CHANGED, DatePickerCtrl, TimePicke
 
 
 class DateRangePanel(wx.Panel):
-    def __init__(self, parent):
+    """Panel for the date range picker dialog."""
+
+    def __init__(self, parent: wx.Window):
+        """
+        Initialize the DateRangePanel instance.
+
+        Args:
+            parent (wx.Window): The parent window.
+        """
         super(DateRangePanel, self).__init__(parent)
         self.Bind(wx.EVT_KEY_DOWN, self.onKeyPress)
 
     def onKeyPress(self, event: wx.KeyEvent) -> None:
+        """
+        Handles the event when a key is pressed.
+
+        Args:
+            event (wx.KeyEvent): The key event.
+
+        Returns:
+            None
+        """
         keyCode = event.GetKeyCode()
         if keyCode == wx.WXK_RETURN:
             self.GetParent().onOk(event)
@@ -21,12 +38,22 @@ class DateRangePanel(wx.Panel):
 
 
 class DateRangeDialog(wx.Frame):
+    """Dialog for selecting a date range."""
+
     def __init__(
         self,
         parent: wx.Window,
         callback: Callable[[wx.DateTime, wx.DateTime], None],
         title: str = "Date Range Picker",
     ):
+        """
+        Initialize the DateRangeDialog instance.
+
+        Args:
+            parent (wx.Window): The parent window.
+            callback (Callable[[wx.DateTime, wx.DateTime], None]): The callback function to be called when the date range is selected.
+            title (str, optional): The title of the dialog. Defaults to "Date Range Picker".
+        """
         super(DateRangeDialog, self).__init__(parent, title=title)
 
         self.callback = callback
@@ -41,6 +68,9 @@ class DateRangeDialog(wx.Frame):
         self.Bind(wx.EVT_ACTIVATE, self.onActivate)
 
     def _createLayout(self) -> None:
+        """
+        Create the layout for the dialog.
+        """
         mainPanel = DateRangePanel(self)
         mainSizer = wx.BoxSizer(wx.VERTICAL)
 
@@ -106,6 +136,15 @@ class DateRangeDialog(wx.Frame):
             self.Close()
 
     def onDateChanged(self, event: wx.Event) -> None:
+        """
+        Handles the EVT_DATE_CHANGED event when the date is changed.
+
+        Args:
+            event (wx.Event): The event associated with the date change.
+
+        Returns:
+            None
+        """
         startDate = self.startDatePicker.GetValue()
         endDate = self.endDatePicker.GetValue()
 
@@ -113,6 +152,15 @@ class DateRangeDialog(wx.Frame):
             self.endDatePicker.SetValue(startDate)
 
     def onTimeChanged(self, event: wx.Event) -> None:
+        """
+        Handles the EVT_TIME_CHANGED event when the time is changed.
+
+        Args:
+            event (wx.Event): The event associated with the time change.
+
+        Returns:
+            None
+        """
         startDate = self.startDatePicker.GetValue()
         startTime = self.startTimePicker.GetValue()
         endDate = self.endDatePicker.GetValue()
@@ -122,6 +170,15 @@ class DateRangeDialog(wx.Frame):
             self.endTimePicker.SetValue(startTime)
 
     def onOk(self, event: wx.Event) -> None:
+        """
+        Handles the OK button click event.
+
+        Args:
+            event (wx.Event): The event associated with the OK button click.
+
+        Returns:
+            None
+        """
         startDate = self.startDatePicker.GetValue()
         startTime = self.startTimePicker.GetValue()
         endDate = self.endDatePicker.GetValue()
