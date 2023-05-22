@@ -14,6 +14,7 @@ from NVDAObjects.IAccessible import IAccessible
 class AppModes(IntEnum):
     DIRECT = auto()
     RATTRAPAGE = auto()
+    TELECHARGEMENT = auto()
     OTHER = auto()
 
 

@@ -56,7 +56,7 @@ class AppModule(appModuleHandler.AppModule):
             ui.message("Menu direct sélectionné")
         elif app_mode == AppModes.RATTRAPAGE:
             ui.message("Menu rattrapage sélectionné")
-        else:
+        elif app_mode == AppModes.TELECHARGEMENT:
             ui.message(
                 "Sélectionnez un menu entre direct (CTRL+D) et rattrapage (CTRL+R)"
             )
@@ -101,6 +101,22 @@ class AppModule(appModuleHandler.AppModule):
                 ui.message("Menu rattrapage sélectionné")
                 break
 
+    @script(gesture="kb:control+t")
+    def script_CTRL_T_Override(self, gesture):
+        """
+        Overrides the default behavior of the CTRL+T keyboard shortcut
+        with custom functionality.
+        """
+        buttons = getModeButtonList()
+        if not buttons:
+            log.error("We couldn't fetch the mode buttons!")
+            return
+        for button in buttons:
+            if button.name == "TÉLÉCHARGEMENT\nMANUEL":
+                button.doAction()
+                ui.message("Menu téléchargement manuel sélectionné")
+                break
+
     @script(description="Liste les chaines.", gesture="kb:NVDA+L")
     def script_ChannelList(self, gesture: Union[str, None]) -> None:
         """
@@ -134,8 +150,6 @@ class AppModule(appModuleHandler.AppModule):
                         "The only supported operations are AppModes.RATTRAPAGE et AppModes.DIRECT"
                     )
 
-            log.debug("Channel list focused")
-            ui.message("Liste des chaines sélectionnée")
             mainFrame.prePopup()
             dialog = ElementsListDialog(
                 mainFrame,
@@ -144,6 +158,8 @@ class AppModule(appModuleHandler.AppModule):
                 title="Liste des chaines",
             )
             dialog.Show()
+            log.debug("Channel list focused")
+            ui.message("Liste des chaines sélectionnée")
             mainFrame.postPopup()
         else:
             ui.message(
@@ -482,6 +498,8 @@ def getAppMode() -> AppModes:
         return AppModes.DIRECT
     elif right_most.name == "RATTRAPAGE":
         return AppModes.RATTRAPAGE
+    elif right_most.name == "TÉLÉCHARGEMENT\nMANUEL":
+        return AppModes.TELECHARGEMENT
 
     log.debugWarning(f"We didn't find DIRECT or RATTRAPAGE but {right_most.name}")
     return AppModes.OTHER
