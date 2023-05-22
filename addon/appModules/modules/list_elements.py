@@ -169,13 +169,18 @@ class ElementsListDialog(wx.Frame):
         Returns:
             None
         """
+        keycode = event.GetKeyCode()
         unicode_keycode = event.GetUnicodeKey()
 
-        if event.GetKeyCode() in [wx.WXK_BACK, wx.WXK_DELETE]:
+        if keycode in [wx.WXK_BACK, wx.WXK_DELETE]:
             search = self.searchCtrl.GetValue()
             self.searchCtrl.ChangeValue(search[:-1])
         elif unicode_keycode != wx.WXK_NONE:
             self.searchCtrl.AppendText(chr(unicode_keycode))
+        elif keycode == wx.WXK_ESCAPE:
+            self.Close()
+        elif keycode == wx.WXK_RETURN:
+            self.onOk(event)
         else:
             event.Skip()
             return
