@@ -1,3 +1,4 @@
+import unicodedata
 from enum import IntEnum, auto
 from typing import TYPE_CHECKING, List, Optional, Tuple, Union
 
@@ -5,7 +6,6 @@ import api
 import controlTypes
 import keyboardHandler
 import winUser
-from controlTypes import Role
 from logHandler import log
 from NVDAObjects import NVDAObject
 from NVDAObjects.IAccessible import IAccessible
@@ -21,6 +21,9 @@ if TYPE_CHECKING:
     from locationHelper import RectLTWH
 
 
+NORMALIZATION_TABLE = str.maketrans({"œ": "oe", "æ": "ae"})
+
+
 def fake_typing(keys: List[str]) -> None:
     """
     Simulate typing the specified keys using NVDA's keyboardHandler.
@@ -33,6 +36,26 @@ def fake_typing(keys: List[str]) -> None:
     """
     for key in keys:
         keyboardHandler.KeyboardInputGesture.fromName(key).send()
+
+
+def normalize_str(input_str: str) -> str:
+    """Normalize a string by stripping ambiguous characters.
+
+    Args:
+        input_str (str): The string to normalize.
+
+    Returns:
+        str: The normalized string.
+    """
+    input_str = input_str.lower().strip()
+
+    # Replace ligatures
+    input_str = input_str.translate(NORMALIZATION_TABLE)
+
+    # Use NFKD normalization to decompose accented characters into their base characters and combining marks.
+    # Then remove nonspacing mark characters (Mn), resulting in a base character string.
+    nfkd_form = unicodedata.normalize("NFKD", input_str)
+    return "".join(c for c in nfkd_form if not unicodedata.combining(c))
 
 
 def setFocus(obj: NVDAObject) -> None:
