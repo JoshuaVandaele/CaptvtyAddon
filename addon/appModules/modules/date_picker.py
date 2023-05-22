@@ -38,6 +38,7 @@ class DateRangeDialog(wx.Frame):
         position_x = screen_width - dialog_width
         position_y = screen_height - dialog_height
         self.SetPosition((position_x, position_y))
+        self.Bind(wx.EVT_ACTIVATE, self.onActivate)
 
     def _createLayout(self) -> None:
         mainPanel = DateRangePanel(self)
@@ -90,6 +91,19 @@ class DateRangeDialog(wx.Frame):
         mainPanel.SetSizer(mainSizer)
         mainSizer.Fit(self)
         mainPanel.SetFocus()
+
+    def onActivate(self, event: wx.ActivateEvent) -> None:
+        """
+        Handles the EVT_ACTIVATE event when the window loses activation.
+
+        Args:
+            event (wx.ActivateEvent): The activate event.
+
+        Returns:
+            None
+        """
+        if not event.GetActive():
+            self.Close()
 
     def onDateChanged(self, event: wx.Event) -> None:
         startDate = self.startDatePicker.GetValue()

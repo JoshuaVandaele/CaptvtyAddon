@@ -102,6 +102,7 @@ class ElementsListDialog(wx.Frame):
         position_x = screen_width - dialog_width
         position_y = screen_height - dialog_height
         self.SetPosition((position_x, position_y))
+        self.Bind(wx.EVT_ACTIVATE, self.onActivate)
 
     @staticmethod
     def _get_element_name(element: Any) -> Union[str, None]:
@@ -159,6 +160,19 @@ class ElementsListDialog(wx.Frame):
         mainSizer.Fit(self)
         self.elementsListBox.SetFocus()
 
+    def onActivate(self, event: wx.ActivateEvent) -> None:
+        """
+        Handles the EVT_ACTIVATE event when the window loses activation.
+
+        Args:
+            event (wx.ActivateEvent): The activate event.
+
+        Returns:
+            None
+        """
+        if not event.GetActive():
+            self.Close()
+
     def onCharHook(self, event: wx.KeyEvent) -> None:
         """
         Handles the event when the user presses any key in the dialog.
@@ -175,12 +189,12 @@ class ElementsListDialog(wx.Frame):
         if keycode in [wx.WXK_BACK, wx.WXK_DELETE]:
             search = self.searchCtrl.GetValue()
             self.searchCtrl.ChangeValue(search[:-1])
-        elif unicode_keycode != wx.WXK_NONE:
-            self.searchCtrl.AppendText(chr(unicode_keycode))
         elif keycode == wx.WXK_ESCAPE:
             self.Close()
         elif keycode == wx.WXK_RETURN:
             self.onOk(event)
+        elif unicode_keycode != wx.WXK_NONE:
+            self.searchCtrl.AppendText(chr(unicode_keycode))
         else:
             event.Skip()
             return
