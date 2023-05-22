@@ -2,8 +2,11 @@ from typing import Any, Callable, List, Optional, Union
 
 import wx
 from gui import guiHelper
+from logHandler import log
 from NVDAObjects import NVDAObject
 from NVDAObjects.IAccessible import IAccessible
+
+from .helper_functions import normalize_str
 
 
 class VirtualList(wx.ListCtrl):
@@ -166,15 +169,13 @@ class ElementsListDialog(wx.Frame):
         Returns:
             None
         """
-        keycode = event.GetKeyCode()
+        unicode_keycode = event.GetUnicodeKey()
 
-        if keycode in range(32, 127):
-            self.searchCtrl.AppendText(chr(keycode))
-        elif keycode in range(wx.WXK_NUMPAD0, wx.WXK_NUMPAD9 + 1):
-            self.searchCtrl.AppendText(str(keycode - wx.WXK_NUMPAD0))
-        elif keycode in [wx.WXK_BACK, wx.WXK_DELETE]:
+        if event.GetKeyCode() in [wx.WXK_BACK, wx.WXK_DELETE]:
             search = self.searchCtrl.GetValue()
             self.searchCtrl.ChangeValue(search[:-1])
+        elif unicode_keycode != wx.WXK_NONE:
+            self.searchCtrl.AppendText(chr(unicode_keycode))
         else:
             event.Skip()
             return
@@ -193,14 +194,15 @@ class ElementsListDialog(wx.Frame):
         Returns:
             None
         """
-        search_text = self.searchCtrl.GetValue().lower()
+        search_text = normalize_str(self.searchCtrl.GetValue().lower())
 
         matching_elements = []
 
         if search_text:
             self.element_indices.clear()
             for index, element_name in enumerate(self.element_names):
-                if search_text in element_name.lower():
+                normalized_element_name = normalize_str(element_name.lower())
+                if search_text in normalized_element_name:
                     matching_elements.append(element_name)
                     self.element_indices.append(index)
 
