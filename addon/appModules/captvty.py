@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, Callable, List, Optional, Union
+from typing import Callable, List, Optional, Union
 
 import api
 import appModuleHandler
