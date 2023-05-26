@@ -110,7 +110,30 @@ def click_position_with_mouse(position: Tuple[int, int]) -> None:
     winUser.mouse_event(winUser.MOUSEEVENTF_LEFTUP, *position, 0, 0)
 
 
-def click_element_with_mouse(
+def hover_element_with_mouse(
+    element: Union[NVDAObject, IAccessible], x_offset: int = 0, y_offset: int = 0
+) -> Tuple[int, int]:
+    """
+    Hovers the specified element using the mouse with the specified x and y offset.
+
+    Args:
+        element (Union[IAccessible, NVDAObject]): The element to hover.
+        x_offset (int, optional): The x offset to add to the center of the element. Defaults to 0.
+        y_offset (int, optional): The y offset to add to the center of the element. Defaults to 0.
+
+    Returns:
+        Tuple[int, int]: Position of the cursor after hovering the element.
+    """
+    location = element.location  # type: ignore - location is defined for IAccessible
+    x = location.left + (location.width // 2) + x_offset
+    y = location.top + (location.height // 2) + y_offset
+
+    winUser.setCursorPos(x, y)
+
+    return x, y
+
+
+def left_click_element_with_mouse(
     element: Union[NVDAObject, IAccessible], x_offset: int = 0, y_offset: int = 0
 ) -> None:
     """
@@ -124,14 +147,30 @@ def click_element_with_mouse(
     Returns:
         None
     """
-    location = element.location  # type: ignore - location is defined for IAccessible
-    x = location.left + (location.width // 2) + x_offset
-    y = location.top + (location.height // 2) + y_offset
-
-    winUser.setCursorPos(x, y)
+    x, y = hover_element_with_mouse(element, x_offset, y_offset)
 
     winUser.mouse_event(winUser.MOUSEEVENTF_LEFTDOWN, x, y, 0, 0)
     winUser.mouse_event(winUser.MOUSEEVENTF_LEFTUP, x, y, 0, 0)
+
+
+def right_click_element_with_mouse(
+    element: Union[NVDAObject, IAccessible], x_offset: int = 0, y_offset: int = 0
+) -> None:
+    """
+    Clicks the specified element using the mouse with the specified x and y offset.
+
+    Args:
+        element (Union[IAccessible, NVDAObject]): The element to click.
+        x_offset (int, optional): The x offset to add to the center of the element. Defaults to 0.
+        y_offset (int, optional): The y offset to add to the center of the element. Defaults to 0.
+
+    Returns:
+        None
+    """
+    x, y = hover_element_with_mouse(element, x_offset, y_offset)
+
+    winUser.mouse_event(winUser.MOUSEEVENTF_RIGHTDOWN, x, y, 0, 0)
+    winUser.mouse_event(winUser.MOUSEEVENTF_RIGHTUP, x, y, 0, 0)
 
 
 def scroll_element_with_mouse(
@@ -339,4 +378,4 @@ def scroll_and_click_on_element(
         scrollable_container=scrollable_container,
         bounds_offset=bounds_offset,
     )
-    click_element_with_mouse(element, x_offset, y_offset)
+    left_click_element_with_mouse(element, x_offset, y_offset)
