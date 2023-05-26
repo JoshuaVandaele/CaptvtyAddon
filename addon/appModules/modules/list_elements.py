@@ -320,9 +320,8 @@ class ElementsListDialog(wx.Frame):
                 new_element_names = []
 
                 for element in elements:
-                    if isinstance(element, (IAccessible, NVDAObject)):
+                    if isinstance(element, IAccessible):
                         element = reacquire_element(element)
-                        # log.debug("Reacquired element: %s", element.name)
 
                     self.element_names.append(self.element_name_getter(element))
 

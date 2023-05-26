@@ -406,7 +406,6 @@ class AppModule(appModuleHandler.AppModule):
                     AttributeError,
                     IndexError,
                 ):  # The element is not a program
-                    log.debug(f"Element is not a program: {element.name}")
                     return None
 
             def selected_program_callback(
