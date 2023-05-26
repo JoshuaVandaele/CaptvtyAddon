@@ -17,10 +17,11 @@ from wx import DateTime
 from .modules.date_picker import DateRangeDialog
 from .modules.helper_functions import (
     AppModes,
-    click_element_with_mouse,
     click_position_with_mouse,
     fake_typing,
     find_element_by_size,
+    left_click_element_with_mouse,
+    right_click_element_with_mouse,
     scroll_and_click_on_element,
     scroll_to_element,
 )
@@ -175,7 +176,7 @@ class AppModule(appModuleHandler.AppModule):
             log.debug(f"Start Date and Time: {start_date_str}")
             log.debug(f"End Date and Time: {end_date_str}")
 
-            click_element_with_mouse(
+            left_click_element_with_mouse(
                 element=selectedElement,
                 y_offset=DIRECT_CHANNEL_LIST_VIEW_BUTTON_OFFSET_Y,
                 x_offset=DIRECT_CHANNEL_LIST_RECORD_BUTTON_OFFSET_X,
@@ -276,12 +277,12 @@ class AppModule(appModuleHandler.AppModule):
         if selectedOption == "Programmer l'enregistrement":
             self._directProgrammerEnregistrement(selectedElement)
         elif selectedOption == "Visionner en direct avec le lecteur interne":
-            click_element_with_mouse(
+            left_click_element_with_mouse(
                 element=selectedElement,
                 y_offset=DIRECT_CHANNEL_LIST_VIEW_BUTTON_OFFSET_Y,
             )
         elif selectedOption == "Visionner en direct avec un lecteur externe":
-            click_element_with_mouse(
+            left_click_element_with_mouse(
                 element=selectedElement,
                 y_offset=DIRECT_CHANNEL_LIST_VIEW_BUTTON_OFFSET_Y,
                 x_offset=DIRECT_CHANNEL_LIST_VIDEOPLAYER_BUTTON_OFFSET_X,
@@ -319,6 +320,27 @@ class AppModule(appModuleHandler.AppModule):
         else:
             raise NotImplementedError
 
+    def _rattrapageSelectViewOptionCallback(
+        self, selectedProgramElement: NVDAObject, selectedOption: str
+    ):
+        scroll_and_click_on_element(
+            element=selectedProgramElement,
+            scrollable_container=selectedProgramElement.parent,
+            max_attempts=10000,
+            bounds_offset=(0, 0, 450, 450),
+        )
+        right_click_element_with_mouse(selectedProgramElement)
+        if selectedOption == "Télécharger":
+            left_click_element_with_mouse(selectedProgramElement, 5, 20)
+        if selectedOption == "Visionner avec le lecteur intégré":
+            left_click_element_with_mouse(selectedProgramElement, 5, 60)
+        elif selectedOption == "Visionner sur le site web":
+            left_click_element_with_mouse(selectedProgramElement, 5, 100)
+        elif selectedOption == "Copier l'adresse de l'émission":
+            left_click_element_with_mouse(selectedProgramElement, 5, 120)
+        else:
+            raise NotImplementedError
+
     def _rattrapageSelectedChannelCallback(self, selectedElement: NVDAObject):
         scroll_area = (
             selectedElement.parent.parent.parent  # type:ignore - Channels are assumed to always be in the channel list
@@ -340,7 +362,7 @@ class AppModule(appModuleHandler.AppModule):
         if not self.window:
             raise NotImplementedError
 
-        click_element_with_mouse(self.window)
+        left_click_element_with_mouse(self.window)
 
         def _program_list():
             if not mainFrame:
@@ -373,6 +395,9 @@ class AppModule(appModuleHandler.AppModule):
             def get_program_info(
                 element: Union[NVDAObject, IAccessible]
             ) -> Union[str, None]:
+                if not isinstance(element, (IAccessible, NVDAObject)):
+                    return None
+
                 try:
                     program = Program(element.name)
                     program_info = f"{program.name} | Durée: {program.duration} | Sommaire: {program.summary}"
@@ -380,19 +405,31 @@ class AppModule(appModuleHandler.AppModule):
                 except (
                     AttributeError,
                     IndexError,
-                ):  # The element is not a valid program
+                ):  # The element is not a program
+                    log.info("Nuh uh, not a program")
                     return None
 
             def selected_program_callback(
                 selectedProgramElement: Union[IAccessible, NVDAObject]
             ) -> None:
-                scroll_and_click_on_element(
-                    element=selectedProgramElement,
-                    scrollable_container=selectedProgramElement.parent,
-                    max_attempts=10000,
-                    bounds_offset=(0, 0, 450, 450),  # TODO: Make this work lol
-                )
-                click_element_with_mouse(selectedProgramElement)  # Double click
+                if mainFrame:
+                    mainFrame.prePopup()
+                    dialog = ElementsListDialog(
+                        parent=mainFrame,
+                        elements=[
+                            "Télécharger",
+                            "Visionner avec le lecteur intégré",
+                            "Visionner sur le site web",
+                            "Copier l'adresse de l'émission",
+                        ],
+                        callback=lambda option: self._rattrapageSelectViewOptionCallback(
+                            selectedProgramElement, option
+                        ),
+                        title="Choisissez une option",
+                        list_label="",
+                    )
+                    dialog.Show()
+                    mainFrame.postPopup()
 
             mainFrame.prePopup()
             dialog = ElementsListDialog(

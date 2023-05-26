@@ -1,10 +1,13 @@
+import threading
 from typing import Any, Callable, List, Optional, Union
 
+import winUser
 import wx
 from gui import guiHelper
 from logHandler import log
 from NVDAObjects import NVDAObject
-from NVDAObjects.IAccessible import IAccessible
+from NVDAObjects.IAccessible import IAccessible, getNVDAObjectFromEvent
+from NVDAObjects.IAccessible.sysListView32 import ListItem
 
 from .helper_functions import normalize_str
 
@@ -77,16 +80,18 @@ class ElementsListDialog(wx.Frame):
         """
         super(ElementsListDialog, self).__init__(parent, title=title)
 
+        self.lock = threading.Lock()
+
         self.list_label = list_label
         self.search_delay = search_delay
         self.empty_list = not elements
         self.elements = elements or ["Liste vide"]
-        self.element_name_getter = (
+        element_name_getter = (
             element_name_getter or ElementsListDialog._get_element_name
         )
+        self.element_name_getter = lambda x: element_name_getter(x) or str(x)
         self.element_names = [
-            self.element_name_getter(element) or str(element)
-            for element in self.elements
+            self.element_name_getter(element) for element in self.elements
         ]
         self.element_indices = list(range(len(self.element_names)))
         self.callback = callback
@@ -114,8 +119,8 @@ class ElementsListDialog(wx.Frame):
         Returns:
             Union[str, None]: The name of the element or None if the element does not have a name.
         """
-        if isinstance(element, (NVDAObject, IAccessible)):
-            return element.name
+        if isinstance(element, (NVDAObject, IAccessible, ListItem)):
+            return element._get_name()
 
     def _createLayout(self) -> None:
         """
@@ -294,34 +299,53 @@ class ElementsListDialog(wx.Frame):
         """
         self.elements.append(element)
 
-        element_name = self.element_name_getter(element) or str(element)
+        element_name = self.element_name_getter(element)
 
         self.element_names.append(element_name)
 
         if self.empty_list:
             self.empty_list = False
-            self.removeElement(0)
+            self.elements.pop()
         self.onSearch()
 
     def appendElements(self, elements: List[Any]) -> None:
-        """
-        Appends a list of elements to the ListBox.
+        """Appends a list of elements to the ElementsListDialog.
 
         Args:
             elements (List[Any]): The elements to append.
         """
-        new_element_names = [
-            self.element_name_getter(element) or str(element) for element in elements
-        ]
 
-        self.elements.extend(elements)
-        self.element_names.extend(new_element_names)
+        def worker(elements):
+            """Worker thread to append elements to the ElementsListDialog."""
+            with self.lock:
+                new_element_names = []
 
-        if self.empty_list:
-            self.empty_list = False
-            self.removeElement(0)
+                for element in elements:
+                    position_info = getattr(element, "positionInfo", None)
+                    index_in_group = (
+                        position_info.get("indexInGroup") if position_info else None
+                    )
 
-        self.onSearch()
+                    if index_in_group:
+                        # get the element by index so we can access the element within this thread.
+                        element = getNVDAObjectFromEvent(
+                            element.windowHandle,
+                            winUser.OBJID_CLIENT,
+                            index_in_group,
+                        )
+
+                    self.element_names.append(self.element_name_getter(element))
+
+                self.elements.extend(elements)
+                self.element_names.extend(new_element_names)
+
+                if self.empty_list:
+                    self.empty_list = False
+                    self.removeElement(0)
+
+            wx.CallAfter(self.onSearch)
+
+        threading.Thread(target=worker, args=(elements,)).start()
 
     def removeElement(self, index: int) -> None:
         """
