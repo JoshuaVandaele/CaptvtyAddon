@@ -8,7 +8,7 @@ import keyboardHandler
 import winUser
 from logHandler import log
 from NVDAObjects import NVDAObject
-from NVDAObjects.IAccessible import IAccessible
+from NVDAObjects.IAccessible import IAccessible, getNVDAObjectFromEvent
 
 
 class AppModes(IntEnum):
@@ -379,3 +379,30 @@ def scroll_and_click_on_element(
         bounds_offset=bounds_offset,
     )
     left_click_element_with_mouse(element, x_offset, y_offset)
+
+
+def reacquire_element(
+    element: Union[NVDAObject, IAccessible]
+) -> Union[IAccessible, None]:
+    """Reacquires the element by index in group.
+    This is useful when the element is not accessible from the current thread.
+
+    Args:
+        element (Union[NVDAObject, IAccessible]): The element to reacquire.
+
+    Returns:
+        Union[IAccessible, None]: The reacquired element or None if not found.
+    """
+    position_info = getattr(element, "positionInfo", None)
+
+    index_in_group = position_info.get("indexInGroup") if position_info else None
+
+    if index_in_group:
+        reacquired_element = getNVDAObjectFromEvent(
+            element.windowHandle,
+            winUser.OBJID_CLIENT,
+            index_in_group,
+        )
+
+        return reacquired_element
+    return None
