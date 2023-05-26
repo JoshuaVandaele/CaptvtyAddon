@@ -381,14 +381,12 @@ def scroll_and_click_on_element(
     left_click_element_with_mouse(element, x_offset, y_offset)
 
 
-def reacquire_element(
-    element: Union[NVDAObject, IAccessible]
-) -> Union[IAccessible, None]:
+def reacquire_element(element: IAccessible) -> Union[IAccessible, None]:
     """Reacquires the element by index in group.
     This is useful when the element is not accessible from the current thread.
 
     Args:
-        element (Union[NVDAObject, IAccessible]): The element to reacquire.
+        element (IAccessible): The element to reacquire.
 
     Returns:
         Union[IAccessible, None]: The reacquired element or None if not found.
