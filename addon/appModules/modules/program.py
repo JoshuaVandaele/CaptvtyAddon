@@ -21,11 +21,28 @@ class Program:
             unparsed_program (str): Unparsed string containing program information.
         """
         parsed_program: List[str] = unparsed_program.split("; ")
-        self.name: str = parsed_program[0]
-        self.channel: str = parsed_program[1][8:]  # Remove "Chaîne: " prefix
-        self.published_at: str = parsed_program[2][24:]  # "Diffusée ou publiée le: "
-        self.duration: str = parsed_program[3][7:]  # "Durée: "
-        self.summary: str = parsed_program[4][8:]  # "Résumé: "
+
+        self.name: str = parsed_program.pop(0).strip()
+
+        if "Chaîne" in parsed_program[0]:
+            self.channel = parsed_program.pop(0).split(":")[1].strip()
+        else:
+            self.channel = None
+
+        if "Diffusée ou publiée le" in parsed_program[0]:
+            self.published_at = parsed_program.pop(0).split(":")[1].strip()
+        else:
+            self.published_at = None
+
+        if "Durée" in parsed_program[0]:
+            self.duration = parsed_program.pop(0).split(":")[1].strip()
+        else:
+            self.duration = None
+
+        if "Résumé" in parsed_program[0]:
+            self.summary = parsed_program.pop(0).split(":")[1].strip()
+        else:
+            self.summary = None
 
     def __str__(self) -> str:
         """

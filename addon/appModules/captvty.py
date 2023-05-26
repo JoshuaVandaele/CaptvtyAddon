@@ -400,13 +400,13 @@ class AppModule(appModuleHandler.AppModule):
 
                 try:
                     program = Program(element.name)
-                    program_info = f"{program.name} | Durée: {program.duration} | Sommaire: {program.summary}"
+                    program_info = f"{program.name}{f' | Durée: {program.duration}' if program.duration else ''}{f' | Sommaire : {program.summary}' if program.summary else ''}"
                     return program_info
                 except (
                     AttributeError,
                     IndexError,
                 ):  # The element is not a program
-                    log.info("Nuh uh, not a program")
+                    log.debug(f"Element is not a program: {element.name}")
                     return None
 
             def selected_program_callback(

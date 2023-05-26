@@ -1,15 +1,14 @@
 import threading
 from typing import Any, Callable, List, Optional, Union
 
-import winUser
 import wx
 from gui import guiHelper
 from logHandler import log
 from NVDAObjects import NVDAObject
-from NVDAObjects.IAccessible import IAccessible, getNVDAObjectFromEvent
+from NVDAObjects.IAccessible import IAccessible
 from NVDAObjects.IAccessible.sysListView32 import ListItem
 
-from .helper_functions import normalize_str
+from .helper_functions import normalize_str, reacquire_element
 
 
 class VirtualList(wx.ListCtrl):
@@ -321,18 +320,9 @@ class ElementsListDialog(wx.Frame):
                 new_element_names = []
 
                 for element in elements:
-                    position_info = getattr(element, "positionInfo", None)
-                    index_in_group = (
-                        position_info.get("indexInGroup") if position_info else None
-                    )
-
-                    if index_in_group:
-                        # get the element by index so we can access the element within this thread.
-                        element = getNVDAObjectFromEvent(
-                            element.windowHandle,
-                            winUser.OBJID_CLIENT,
-                            index_in_group,
-                        )
+                    if isinstance(element, (IAccessible, NVDAObject)):
+                        element = reacquire_element(element)
+                        # log.debug("Reacquired element: %s", element.name)
 
                     self.element_names.append(self.element_name_getter(element))
 
