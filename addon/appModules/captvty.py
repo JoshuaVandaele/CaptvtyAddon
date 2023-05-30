@@ -44,13 +44,28 @@ RATTRAPAGE_PROGRAM_LIST_HEADER_CONTROL_COUNT = 7
 
 
 class AppModule(appModuleHandler.AppModule):
-    def __init__(self, processID, appName=None):
+    """Application module for Captvty."""
+
+    def __init__(self, processID, appName=None) -> None:
+        """
+        Initialize the AppModule.
+
+        Args:
+            processID (int): The ID of the process.
+            appName (str): The name of the application.
+        """
         super().__init__(processID, appName)
         self.current_channel_rattrapage = None
         self.window = None
 
     def event_gainFocus(self, obj: NVDAObject, nextHandler: Callable) -> None:
-        """Handles the gainFocus event."""
+        """
+        Handles the gainFocus event.
+
+        Args:
+            obj (NVDAObject): The NVDAObject that gained focus.
+            nextHandler (Callable): The next event handler to call.
+        """
         self.window = api.getForegroundObject()
         app_mode: AppModes = getAppMode()
         if app_mode == AppModes.DIRECT:
@@ -66,7 +81,13 @@ class AppModule(appModuleHandler.AppModule):
         nextHandler()
 
     def event_loseFocus(self, obj: NVDAObject, nextHandler: Callable) -> None:
-        """Handles the loseFocus event."""
+        """
+        Handles the loseFocus event.
+
+        Args:
+            obj (NVDAObject): The NVDAObject that gained focus.
+            nextHandler (Callable): The next event handler to call.
+        """
         log.debug("-=== Captvty Unfocused ===-")
         nextHandler()
 
@@ -74,7 +95,10 @@ class AppModule(appModuleHandler.AppModule):
     def script_CTRL_D_Override(self, gesture):
         """
         Overrides the default behavior of the CTRL+D keyboard shortcut
-        with custom functionality.
+        to select the Direct mode.
+
+        Args:
+            gesture (str): The gesture that triggered the script.
         """
         buttons = getModeButtonList()
         if not buttons:
@@ -90,7 +114,10 @@ class AppModule(appModuleHandler.AppModule):
     def script_CTRL_R_Override(self, gesture):
         """
         Overrides the default behavior of the CTRL+R keyboard shortcut
-        with custom functionality.
+        to select the Rattrapage mode.
+
+        Args:
+            gesture (str): The gesture that triggered the script.
         """
         buttons = getModeButtonList()
         if not buttons:
@@ -105,8 +132,10 @@ class AppModule(appModuleHandler.AppModule):
     @script(gesture="kb:control+t")
     def script_CTRL_T_Override(self, gesture):
         """
-        Overrides the default behavior of the CTRL+T keyboard shortcut
-        with custom functionality.
+        Creates a new CTRL+T keyboard shortcut which opens the Telechargement menu.
+
+        Args:
+            gesture (str): The gesture that triggered the script.
         """
         buttons = getModeButtonList()
         if not buttons:
@@ -119,15 +148,12 @@ class AppModule(appModuleHandler.AppModule):
                 break
 
     @script(description="Liste les chaines.", gesture="kb:NVDA+L")
-    def script_ChannelList(self, gesture: Union[str, None]) -> None:
+    def script_ChannelList(self, gesture: str) -> None:
         """
         Displays a dialog with the channels to select from and selects it.
 
         Args:
-            gesture: The gesture that triggered the script. Can be a string or None.
-
-        Returns:
-            None
+            gesture (str): The gesture that triggered the script.
         """
         ui.message("Chargement de la liste des chaines")
         channelList: Union[List[NVDAObject], None] = getChannelButtonList()
@@ -138,6 +164,12 @@ class AppModule(appModuleHandler.AppModule):
             def selectedChannelCallback(
                 selectedElement: Union[None, NVDAObject]
             ) -> None:
+                """
+                Callback function for the selected channel.
+
+                Args:
+                    selectedElement (NVDAObject or None): The selected NVDAObject representing the channel.
+                """
                 nonlocal app_mode
                 if not selectedElement:
                     return
@@ -169,7 +201,21 @@ class AppModule(appModuleHandler.AppModule):
             log.error("Could not focus channel list: Channel list not found")
 
     def _directProgrammerEnregistrement(self, selectedElement):
+        """
+        Handles the process of programming an Enregistrement in Direct mode.
+
+        Args:
+            selectedElement: The selected NVDAObject representing the element.
+        """
+
         def _datepick_callback(start_date: DateTime, end_date: DateTime) -> None:
+            """
+            Callback function for the selected start and end dates.
+
+            Args:
+                start_date: The selected start date and time.
+                end_date: The selected end date and time.
+            """
             start_date_str = start_date.Format("%Y-%m-%d %H:%M:%S")
             end_date_str = end_date.Format("%Y-%m-%d %H:%M:%S")
 
@@ -230,6 +276,9 @@ class AppModule(appModuleHandler.AppModule):
             )
 
             def _interact_with_enregistrement_dialog():
+                """
+                Performs the interactions with the enregistrement dialog.
+                """
                 click_position_with_mouse(pos_button_enregistrer)
                 for i in range(len(from_dates)):
                     click_position_with_mouse(
@@ -274,6 +323,13 @@ class AppModule(appModuleHandler.AppModule):
     def _directSelectViewOptionCallback(
         self, selectedElement: NVDAObject, selectedOption: str
     ):
+        """
+        Callback for once the user has selected a view option in Direct mode.
+
+        Args:
+            selectedElement: The selected NVDAObject representing the element.
+            selectedOption: The selected option.
+        """
         if selectedOption == "Programmer l'enregistrement":
             self._directProgrammerEnregistrement(selectedElement)
         elif selectedOption == "Visionner en direct avec le lecteur interne":
@@ -291,6 +347,12 @@ class AppModule(appModuleHandler.AppModule):
             raise NotImplementedError
 
     def _directSelectedChannelCallback(self, selectedElement: NVDAObject):
+        """
+        Callback for when the user has selected a channel in Direct mode.
+
+        Args:
+            selectedElement: The selected NVDAObject representing the element.
+        """
         scroll_area = (
             selectedElement.parent.parent.parent  # type:ignore - Channels are assumed to always be in the channel list
         )
@@ -323,6 +385,13 @@ class AppModule(appModuleHandler.AppModule):
     def _rattrapageSelectViewOptionCallback(
         self, selectedProgramElement: NVDAObject, selectedOption: str
     ):
+        """
+        Callback for once the user has selected a view option in Rattrapage mode.
+
+        Args:
+            selectedProgramElement: The selected NVDAObject representing the program element.
+            selectedOption: The selected option.
+        """
         scroll_and_click_on_element(
             element=selectedProgramElement,
             scrollable_container=selectedProgramElement.parent,
@@ -342,6 +411,12 @@ class AppModule(appModuleHandler.AppModule):
             raise NotImplementedError
 
     def _rattrapageSelectedChannelCallback(self, selectedElement: NVDAObject):
+        """
+        Callback for when the user has selected a channel in Rattrapage mode.
+
+        Args:
+            selectedElement: The selected NVDAObject representing the element.
+        """
         scroll_area = (
             selectedElement.parent.parent.parent  # type:ignore - Channels are assumed to always be in the channel list
         )
@@ -364,13 +439,25 @@ class AppModule(appModuleHandler.AppModule):
 
         left_click_element_with_mouse(self.window)
 
-        def _program_list():
+        def _program_list() -> None:
+            """
+            Handles displaying the program list.
+
+            Raises:
+                NotImplementedError: If the mainFrame is not available.
+            """
             if not mainFrame:
                 raise NotImplementedError
             programList = api.getFocusObject()
             programsCount = RATTRAPAGE_PROGRAM_LIST_HEADER_CONTROL_COUNT
 
             def update_program_list(dialog: ElementsListDialog):
+                """
+                Updates the program list whenever a new program is added.
+
+                Args:
+                    dialog (ElementsListDialog): The dialog to update.
+                """
                 nonlocal programsCount
                 if not dialog.IsActive():
                     return
@@ -395,6 +482,15 @@ class AppModule(appModuleHandler.AppModule):
             def get_program_info(
                 element: Union[NVDAObject, IAccessible]
             ) -> Union[str, None]:
+                """
+                Gathers the program information from the element.
+
+                Args:
+                    element (Union[NVDAObject, IAccessible]): The element to get the info from.
+
+                Returns:
+                    Union[str, None]: The program info or None if the element is not a program.
+                """
                 if not isinstance(element, (IAccessible, NVDAObject)):
                     return None
 
@@ -411,6 +507,12 @@ class AppModule(appModuleHandler.AppModule):
             def selected_program_callback(
                 selectedProgramElement: Union[IAccessible, NVDAObject]
             ) -> None:
+                """
+                Callback for when the user has selected a program.
+
+                Args:
+                    selectedProgramElement (Union[IAccessible, NVDAObject]): The selected program element.
+                """
                 if mainFrame:
                     mainFrame.prePopup()
                     dialog = ElementsListDialog(
@@ -518,7 +620,8 @@ def getAppMode() -> AppModes:
         AppModes: An enum value representing the current application mode.
             - AppModes.DIRECT if the right-most button's name is "DIRECT"
             - AppModes.RATTRAPAGE if the right-most button's name is "RATTRAPAGE"
-            - AppModes.OTHER if the right-most button has a different name or the list of buttons is not found
+            - AppModes.TELECHARGEMENT if the right-most button's name is "TÉLÉCHARGEMENT\nMANUEL"
+            - AppModes.OTHER if the right-most button's name is not one of the above.
     """
     buttons = getModeButtonList()
     if not buttons:
