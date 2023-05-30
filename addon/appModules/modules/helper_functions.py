@@ -12,6 +12,8 @@ from NVDAObjects.IAccessible import IAccessible, getNVDAObjectFromEvent
 
 
 class AppModes(IntEnum):
+    """Enum representing the different app modes."""
+
     DIRECT = auto()
     RATTRAPAGE = auto()
     TELECHARGEMENT = auto()
