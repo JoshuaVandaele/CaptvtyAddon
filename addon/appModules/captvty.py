@@ -580,7 +580,7 @@ def getModeButtonList() -> Optional[List[NVDAObject]]:
     window = api.getForegroundObject()
 
     if not hasattr(getModeButtonList, "_index_cache"):
-        getModeButtonList._index_cache = 3
+        getModeButtonList._index_cache = 0
 
     # This is probably not the most efficient approach, however,
     # on computer restart the index changes at random,
@@ -606,7 +606,7 @@ def getModeButtonList() -> Optional[List[NVDAObject]]:
 
         if len(mode_buttons) == MODE_BUTTONS_COUNT:
             getModeButtonList._index_cache = i
-            log.debug(f"> Mode Button Index: {i}")  # Known range: 3, 4,
+            log.debug(f"> Mode Button Index: {i}")
             return mode_buttons
 
     del getModeButtonList._index_cache
