@@ -102,6 +102,7 @@ class AppModule(appModuleHandler.AppModule):
         """
         buttons = getModeButtonList()
         if not buttons:
+            ui.message("Nous n'avons pas pu sélectionner le menu direct")
             log.error("We couldn't fetch the mode buttons!")
             return
         for button in buttons:
@@ -121,6 +122,7 @@ class AppModule(appModuleHandler.AppModule):
         """
         buttons = getModeButtonList()
         if not buttons:
+            ui.message("Nous n'avons pas pu sélectionner le menu rattrapage")
             log.error("We couldn't fetch the mode buttons!")
             return
         for button in buttons:
@@ -139,6 +141,7 @@ class AppModule(appModuleHandler.AppModule):
         """
         buttons = getModeButtonList()
         if not buttons:
+            ui.message("Nous n'avons pas pu sélectionner le menu téléchargement manuel")
             log.error("We couldn't fetch the mode buttons!")
             return
         for button in buttons:
@@ -158,47 +161,52 @@ class AppModule(appModuleHandler.AppModule):
         ui.message("Chargement de la liste des chaines")
         channelList: Union[List[NVDAObject], None] = getChannelButtonList()
         log.debug(f"channelList: {channelList}")
-        if channelList and mainFrame:
-            app_mode: AppModes = getAppMode()
-
-            def selectedChannelCallback(
-                selectedElement: Union[None, NVDAObject]
-            ) -> None:
-                """
-                Callback function for the selected channel.
-
-                Args:
-                    selectedElement (NVDAObject or None): The selected NVDAObject representing the channel.
-                """
-                nonlocal app_mode
-                if not selectedElement:
-                    return
-                if app_mode == AppModes.RATTRAPAGE:
-                    self._rattrapageSelectedChannelCallback(selectedElement)
-                elif app_mode == AppModes.DIRECT:
-                    self._directSelectedChannelCallback(selectedElement)
-                else:
-                    raise ValueError(
-                        f"{app_mode} is not a supported operation.\n"
-                        "The only supported operations are AppModes.RATTRAPAGE et AppModes.DIRECT"
-                    )
-
-            mainFrame.prePopup()
-            dialog = ElementsListDialog(
-                mainFrame,
-                channelList,
-                callback=selectedChannelCallback,
-                title="Liste des chaines",
-            )
-            dialog.Show()
-            log.debug("Channel list focused")
-            ui.message("Liste des chaines sélectionnée")
-            mainFrame.postPopup()
-        else:
+        if not channelList:
             ui.message(
                 "Une erreur fatale s'est produite lors du chargement de la liste des chaînes"
             )
             log.error("Could not focus channel list: Channel list not found")
+            return
+        if not mainFrame:
+            ui.message("Une erreur fatale s'est produite: mainFrame n'a pas été trouvé")
+            log.error("Could not focus channel list: mainFrame not found")
+            return
+        app_mode: AppModes = getAppMode()
+
+        def selectedChannelCallback(selectedElement: Union[None, NVDAObject]) -> None:
+            """
+            Callback function for the selected channel.
+
+            Args:
+                selectedElement (NVDAObject or None): The selected NVDAObject representing the channel.
+            """
+            nonlocal app_mode
+            if not selectedElement:
+                return
+            if app_mode == AppModes.RATTRAPAGE:
+                self._rattrapageSelectedChannelCallback(selectedElement)
+            elif app_mode == AppModes.DIRECT:
+                self._directSelectedChannelCallback(selectedElement)
+            else:
+                ui.message(
+                    "Une erreur fatale s'est produite: Vous pouvez seulement sélectionner une chaine en mode direct ou rattrapage."
+                )
+                raise ValueError(
+                    f"{app_mode} is not a supported operation.\n"
+                    "The only supported operations are AppModes.RATTRAPAGE et AppModes.DIRECT"
+                )
+
+        mainFrame.prePopup()
+        dialog = ElementsListDialog(
+            mainFrame,
+            channelList,
+            callback=selectedChannelCallback,
+            title="Liste des chaines",
+        )
+        dialog.Show()
+        log.debug("Channel list focused")
+        ui.message("Liste des chaines sélectionnée")
+        mainFrame.postPopup()
 
     def _directProgrammerEnregistrement(self, selectedElement):
         """
@@ -344,6 +352,7 @@ class AppModule(appModuleHandler.AppModule):
                 x_offset=DIRECT_CHANNEL_LIST_VIDEOPLAYER_BUTTON_OFFSET_X,
             )
         else:
+            ui.message("Une erreur fatale s'est produite: option invalide sélectionnée")
             raise NotImplementedError
 
     def _directSelectedChannelCallback(self, selectedElement: NVDAObject):
@@ -380,6 +389,7 @@ class AppModule(appModuleHandler.AppModule):
             dialog.Show()
             mainFrame.postPopup()
         else:
+            ui.message("Une erreur fatale s'est produite: mainFrame n'est pas définie")
             raise NotImplementedError
 
     def _rattrapageSelectViewOptionCallback(
@@ -408,6 +418,7 @@ class AppModule(appModuleHandler.AppModule):
         elif selectedOption == "Copier l'adresse de l'émission":
             left_click_element_with_mouse(selectedProgramElement, 5, 120)
         else:
+            ui.message("Une erreur fatale s'est produite: option invalide sélectionnée")
             raise NotImplementedError
 
     def _rattrapageSelectedChannelCallback(self, selectedElement: NVDAObject):
@@ -435,6 +446,9 @@ class AppModule(appModuleHandler.AppModule):
             y_offset=-20,
         )
         if not self.window:
+            ui.message(
+                "Une erreur fatale s'est produite: La fenêtre captvty n'a pas été trouvée"
+            )
             raise NotImplementedError
 
         left_click_element_with_mouse(self.window)
@@ -447,6 +461,9 @@ class AppModule(appModuleHandler.AppModule):
                 NotImplementedError: If the mainFrame is not available.
             """
             if not mainFrame:
+                ui.message(
+                    "Une erreur fatale s'est produite: mainFrame n'est pas définie"
+                )
                 raise NotImplementedError
             programList = api.getFocusObject()
             programsCount = RATTRAPAGE_PROGRAM_LIST_HEADER_CONTROL_COUNT
