@@ -80,6 +80,7 @@ class ElementsListDialog(wx.Frame):
         super(ElementsListDialog, self).__init__(parent, title=title)
 
         self.lock = threading.Lock()
+        self.is_closed = False
 
         self.list_label = list_label
         self.search_delay = search_delay
@@ -267,11 +268,16 @@ class ElementsListDialog(wx.Frame):
             None
         """
         self.Close()
-        if not self.callback:
+        if not self.callback or self.empty_list:
             return
         selectedIndex = self.elementsListBox.GetFirstSelected()
         if selectedIndex != -1:
             self.selectedElement = self.elements[self.element_indices[selectedIndex]]
+        log.debug(
+            f"Selected element: {self.selectedElement.devInfo}\n"
+            f"index: {selectedIndex}\n"
+            f"element_indices: {self.element_indices}"
+        )
 
         self.callback(self.selectedElement)
 
@@ -285,6 +291,7 @@ class ElementsListDialog(wx.Frame):
         Returns:
             None
         """
+        self.is_closed = True
         if self.searchTimer.IsRunning():
             self.searchTimer.Stop()
         super().Close()
@@ -320,18 +327,21 @@ class ElementsListDialog(wx.Frame):
                 new_element_names = []
 
                 for element in elements:
+                    if self.is_closed:
+                        return
                     if isinstance(element, IAccessible):
                         element = reacquire_element(element)
 
                     self.element_names.append(self.element_name_getter(element))
 
                 self.elements.extend(elements)
-                self.element_names.extend(new_element_names)
 
                 if self.empty_list:
                     self.empty_list = False
                     self.removeElement(0)
 
+            if self.is_closed:
+                return
             wx.CallAfter(self.onSearch)
 
         threading.Thread(target=worker, args=(elements,)).start()

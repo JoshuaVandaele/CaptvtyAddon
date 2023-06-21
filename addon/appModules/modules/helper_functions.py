@@ -6,6 +6,7 @@ import api
 import controlTypes
 import keyboardHandler
 import winUser
+from comtypes import COMError
 from logHandler import log
 from NVDAObjects import NVDAObject
 from NVDAObjects.IAccessible import IAccessible, getNVDAObjectFromEvent
@@ -74,29 +75,6 @@ def setFocus(obj: NVDAObject) -> None:
     obj.setFocus()
     api.setFocusObject(obj)
     api.processPendingEvents()
-
-
-def find_element_by_size(
-    target_width: Optional[int] = None, target_height: Optional[int] = None
-) -> Optional[Union[IAccessible, NVDAObject]]:
-    """
-    Finds and returns an object with the specified width and/or height from the current foreground object's descendants.
-
-    Args:
-        target_width (int, optional): The target width to search for.
-        target_height (int, optional): The target height to search for.
-
-    Returns:
-        An object with the specified width and/or height, or None if not found.
-    """
-    fg = api.getForegroundObject()
-    for obj in fg.recursiveDescendants:  # type: ignore - recursiveDescendants is defined for IAccessible and NVDAObject
-        left, top, width, height = obj.location
-        if (not target_width or width == target_width) and (
-            not target_height or height == target_height
-        ):
-            return obj
-    return None
 
 
 def click_position_with_mouse(position: Tuple[int, int]) -> None:
@@ -198,10 +176,8 @@ def scroll_element_with_mouse(
         None
     """
     location = element.location  # type: ignore - location is defined for IAccessible
-    x: int = x or location.left + (location.width // 2)
-    y: int = y or location.top + (location.height // 2)
-    x += x_offset  # type: ignore - at this step, x is never None or Unknown
-    y += y_offset  # type: ignore - at this step, y is never None or Unknown
+    x: int = (x or (location.left + (location.width // 2))) + x_offset
+    y: int = (y or (location.top + (location.height // 2))) + y_offset
 
     winUser.setCursorPos(x, y)
 
@@ -274,6 +250,8 @@ def scroll_to_element(
     max_attempts: int = 10,
     scrollable_container: Optional[Union[IAccessible, NVDAObject]] = None,
     bounds_offset: Tuple[int, int, int, int] = (0, 0, 0, 0),
+    x_offset: int = 0,
+    y_offset: int = 0,
 ) -> None:
     """
     Scrolls the current foreground window to bring the specified element into view.
@@ -284,6 +262,8 @@ def scroll_to_element(
         max_attempts (int, optional): The maximum number of scroll attempts. Defaults to 10.
         scrollable_container: (Union[IAccessible, NVDAObject], optional): Container in which we will scroll.
         bounds_offset (Tuple[int, int, int, int], optional): Offsets for detecting the left, right, top and bottom of the element.
+        x_offset (int, optional): The x offset to add to the center of the element. Defaults to 0.
+        y_offset (int, optional): The y offset to add to the center of the element. Defaults to 0.
 
     Returns:
         None
@@ -303,9 +283,19 @@ def scroll_to_element(
         log.info(f"trespassing: {trespassing_side}")
 
         if trespassing_side == "above":
-            scroll_element_with_mouse(scrollable_container, delta=scroll_delta)
+            scroll_element_with_mouse(
+                scrollable_container,
+                delta=scroll_delta,
+                x_offset=x_offset,
+                y_offset=y_offset,
+            )
         elif trespassing_side == "below":
-            scroll_element_with_mouse(scrollable_container, delta=-scroll_delta)
+            scroll_element_with_mouse(
+                scrollable_container,
+                delta=-scroll_delta,
+                x_offset=x_offset,
+                y_offset=y_offset,
+            )
         new_el_location = element._get_location()
         if new_el_location == el_location:
             has_not_moved_counter += 1
@@ -379,6 +369,8 @@ def scroll_and_click_on_element(
         max_attempts=max_attempts,
         scrollable_container=scrollable_container,
         bounds_offset=bounds_offset,
+        x_offset=x_offset,
+        y_offset=y_offset,
     )
     left_click_element_with_mouse(element, x_offset, y_offset)
 
@@ -393,16 +385,21 @@ def reacquire_element(element: IAccessible) -> Union[IAccessible, None]:
     Returns:
         Union[IAccessible, None]: The reacquired element or None if not found.
     """
-    position_info = getattr(element, "positionInfo", None)
-
-    index_in_group = position_info.get("indexInGroup") if position_info else None
+    try:
+        position_info = getattr(element, "positionInfo", None)
+        index_in_group = position_info.get("indexInGroup") if position_info else None
+    except COMError:
+        return None
 
     if index_in_group:
-        reacquired_element = getNVDAObjectFromEvent(
-            element.windowHandle,
-            winUser.OBJID_CLIENT,
-            index_in_group,
-        )
+        try:
+            reacquired_element = getNVDAObjectFromEvent(
+                element.windowHandle,
+                winUser.OBJID_CLIENT,
+                index_in_group,
+            )
+        except COMError:
+            return None
 
         return reacquired_element
     return None

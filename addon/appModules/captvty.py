@@ -1,4 +1,4 @@
-from typing import Callable, List, Optional, Union
+from typing import Callable, Dict, List, Optional, Union
 
 import api
 import appModuleHandler
@@ -15,11 +15,17 @@ from speech.priorities import SpeechPriority
 from wx import DateTime
 
 from .modules.date_picker import DateRangeDialog
+from .modules.exceptions import (
+    ButtonListPaneNotAvailableError,
+    ChannelListNotAvailableError,
+    InvalidElementRoleError,
+    WindowNotAvailableError,
+)
 from .modules.helper_functions import (
     AppModes,
     click_position_with_mouse,
     fake_typing,
-    find_element_by_size,
+    hover_element_with_mouse,
     left_click_element_with_mouse,
     right_click_element_with_mouse,
     scroll_and_click_on_element,
@@ -29,15 +35,10 @@ from .modules.list_elements import ElementsListDialog
 from .modules.program import Program
 
 # Constants
-# Width of the channel list on the left side of the window, this constant is used to locate it on screen
-CHANNEL_LIST_WIDTH = 263
 # Offsets for the mouse when selecting an element
 DIRECT_CHANNEL_LIST_VIEW_BUTTON_OFFSET_Y = -20
 DIRECT_CHANNEL_LIST_VIDEOPLAYER_BUTTON_OFFSET_X = 162
 DIRECT_CHANNEL_LIST_RECORD_BUTTON_OFFSET_X = 185
-# Amount of buttons at the top left with different modes for the app.
-# There 3 modes at the time of writing are: Direct, Rattrapage, and Telechargement Manuel
-MODE_BUTTONS_COUNT = 3
 # Number of elements to skip from the program list
 # due to them not being elements of the list but header controls for the list
 RATTRAPAGE_PROGRAM_LIST_HEADER_CONTROL_COUNT = 7
@@ -67,15 +68,6 @@ class AppModule(appModuleHandler.AppModule):
             nextHandler (Callable): The next event handler to call.
         """
         self.window = api.getForegroundObject()
-        app_mode: AppModes = getAppMode()
-        if app_mode == AppModes.DIRECT:
-            ui.message("Menu direct sélectionné")
-        elif app_mode == AppModes.RATTRAPAGE:
-            ui.message("Menu rattrapage sélectionné")
-        elif app_mode == AppModes.TELECHARGEMENT:
-            ui.message(
-                "Sélectionnez un menu entre direct (CTRL+D) et rattrapage (CTRL+R)"
-            )
 
         log.debug("-=== Captvty Focused ===-")
         nextHandler()
@@ -91,6 +83,30 @@ class AppModule(appModuleHandler.AppModule):
         log.debug("-=== Captvty Unfocused ===-")
         nextHandler()
 
+    def doModeButtonAction(self, button_name: str):
+        """
+        Tries to find and activate a button from the mode button list.
+
+        Args:
+            button_name (str): The name of the button to activate.
+        """
+        try:
+            buttons = self.getModeButtonList()
+            button = buttons.get(button_name)
+            if button is not None:
+                button.doAction()
+                ui.message(f"Menu {button_name} sélectionné")
+            else:
+                ui.message(
+                    f"Nous n'avons pas pu sélectionner le menu {button_name.lower()}"
+                )
+                log.error(f"We couldn't fetch the {button_name.lower()} button!")
+        except Exception as e:
+            ui.message(
+                f"Nous n'avons pas pu sélectionner le menu {button_name.lower()}"
+            )
+            log.error(f"We couldn't fetch the mode buttons: {e}")
+
     @script(gesture="kb:control+d")
     def script_CTRL_D_Override(self, gesture):
         """
@@ -100,16 +116,7 @@ class AppModule(appModuleHandler.AppModule):
         Args:
             gesture (str): The gesture that triggered the script.
         """
-        buttons = getModeButtonList()
-        if not buttons:
-            ui.message("Nous n'avons pas pu sélectionner le menu direct")
-            log.error("We couldn't fetch the mode buttons!")
-            return
-        for button in buttons:
-            if button.name == "DIRECT":
-                button.doAction()
-                ui.message("Menu direct sélectionné")
-                break
+        self.doModeButtonAction("DIRECT")
 
     @script(gesture="kb:control+r")
     def script_CTRL_R_Override(self, gesture):
@@ -120,16 +127,7 @@ class AppModule(appModuleHandler.AppModule):
         Args:
             gesture (str): The gesture that triggered the script.
         """
-        buttons = getModeButtonList()
-        if not buttons:
-            ui.message("Nous n'avons pas pu sélectionner le menu rattrapage")
-            log.error("We couldn't fetch the mode buttons!")
-            return
-        for button in buttons:
-            if button.name == "RATTRAPAGE":
-                button.doAction()
-                ui.message("Menu rattrapage sélectionné")
-                break
+        self.doModeButtonAction("RATTRAPAGE")
 
     @script(gesture="kb:control+t")
     def script_CTRL_T_Override(self, gesture):
@@ -139,16 +137,28 @@ class AppModule(appModuleHandler.AppModule):
         Args:
             gesture (str): The gesture that triggered the script.
         """
-        buttons = getModeButtonList()
-        if not buttons:
-            ui.message("Nous n'avons pas pu sélectionner le menu téléchargement manuel")
-            log.error("We couldn't fetch the mode buttons!")
-            return
-        for button in buttons:
-            if button.name == "TÉLÉCHARGEMENT\nMANUEL":
-                button.doAction()
-                ui.message("Menu téléchargement manuel sélectionné")
-                break
+        self.doModeButtonAction("TÉLÉCHARGEMENT\nMANUEL")
+
+    @script(gesture="kb:control+e")
+    def script_CTRL_E_Override(self, gesture):
+        """
+        Creates a new CTRL+E keyboard shortcut which I use for testing.
+
+        Args:
+            gesture (str): The gesture that triggered the script.
+        """
+        ui.message("start")
+        window_width = self.window.location.width
+
+        x_hover_offset = -(window_width // 2) + 50
+        ui.message(f"offset: {x_hover_offset}")
+
+        hover_element_with_mouse(  # right_click_element_with_mouse(
+            element=self.window,
+            x_offset=x_hover_offset,
+            y_offset=20,
+        )
+        ui.message("end")
 
     @script(description="Liste les chaines.", gesture="kb:NVDA+L")
     def script_ChannelList(self, gesture: str) -> None:
@@ -159,8 +169,14 @@ class AppModule(appModuleHandler.AppModule):
             gesture (str): The gesture that triggered the script.
         """
         ui.message("Chargement de la liste des chaines")
-        channelList: Union[List[NVDAObject], None] = getChannelButtonList()
-        log.debug(f"channelList: {channelList}")
+        try:
+            channelList: Union[List[NVDAObject], None] = self.getChannelButtonList()
+        except Exception as e:
+            ui.message(
+                "Une erreur s'est produite lors du chargement de la liste des chaînes"
+            )
+            log.error(f"Could not load channel list: {e}")
+            return
         if not channelList:
             ui.message(
                 "Une erreur fatale s'est produite lors du chargement de la liste des chaînes"
@@ -171,7 +187,7 @@ class AppModule(appModuleHandler.AppModule):
             ui.message("Une erreur fatale s'est produite: mainFrame n'a pas été trouvé")
             log.error("Could not focus channel list: mainFrame not found")
             return
-        app_mode: AppModes = getAppMode()
+        app_mode: AppModes = self.getAppMode()
 
         def selectedChannelCallback(selectedElement: Union[None, NVDAObject]) -> None:
             """
@@ -237,8 +253,10 @@ class AppModule(appModuleHandler.AppModule):
             )
 
             if not self.window:
-                log.error("Could not find self.window")
-                return
+                ui.message(
+                    "Une erreur fatale s'est produite: La fenêtre captvty n'a pas été trouvée"
+                )
+                raise WindowNotAvailableError
 
             window_location = self.window._get_location()
 
@@ -402,24 +420,58 @@ class AppModule(appModuleHandler.AppModule):
             selectedProgramElement: The selected NVDAObject representing the program element.
             selectedOption: The selected option.
         """
-        scroll_and_click_on_element(
+        window_height = self.window._get_location().height
+        selectedProgramElement_width = selectedProgramElement.location.width
+
+        x_hover_offset = -(selectedProgramElement_width // 2) + 50
+
+        scroll_to_element(
             element=selectedProgramElement,
             scrollable_container=selectedProgramElement.parent,
             max_attempts=10000,
-            bounds_offset=(0, 0, 450, 450),
+            bounds_offset=(0, 0, window_height // 2, window_height // 2),
+            x_offset=0,  # x_hover_offset,
         )
-        right_click_element_with_mouse(selectedProgramElement)
+
+        selectedProgramElement.invalidateCache()
+        selectedProgramElement.invalidateCaches()
+
+        right_click_element_with_mouse(
+            element=selectedProgramElement,
+            x_offset=x_hover_offset,
+        )
+        ui.message(f"Selection: {selectedProgramElement.name} - {selectedOption}")
         if selectedOption == "Télécharger":
-            left_click_element_with_mouse(selectedProgramElement, 5, 20)
-        if selectedOption == "Visionner avec le lecteur intégré":
-            left_click_element_with_mouse(selectedProgramElement, 5, 60)
+            left_click_element_with_mouse(
+                element=selectedProgramElement,
+                x_offset=x_hover_offset + 10,
+                y_offset=20,
+            )
+        elif selectedOption == "Visionner avec le lecteur intégré":
+            left_click_element_with_mouse(
+                element=selectedProgramElement,
+                x_offset=x_hover_offset + 10,
+                y_offset=60,
+            )
         elif selectedOption == "Visionner sur le site web":
-            left_click_element_with_mouse(selectedProgramElement, 5, 100)
+            left_click_element_with_mouse(
+                element=selectedProgramElement,
+                x_offset=x_hover_offset + 10,
+                y_offset=100,
+            )
         elif selectedOption == "Copier l'adresse de l'émission":
-            left_click_element_with_mouse(selectedProgramElement, 5, 120)
+            left_click_element_with_mouse(
+                element=selectedProgramElement,
+                x_offset=x_hover_offset + 10,
+                y_offset=120,
+            )
         else:
-            ui.message("Une erreur fatale s'est produite: option invalide sélectionnée")
+            ui.message(
+                f"Une erreur fatale s'est produite: option invalide sélectionnée ({selectedOption})"
+            )
             raise NotImplementedError
+        selectedProgramElement.setFocus()
+        api.setFocusObject(selectedProgramElement)
 
     def _rattrapageSelectedChannelCallback(self, selectedElement: NVDAObject):
         """
@@ -449,7 +501,7 @@ class AppModule(appModuleHandler.AppModule):
             ui.message(
                 "Une erreur fatale s'est produite: La fenêtre captvty n'a pas été trouvée"
             )
-            raise NotImplementedError
+            raise WindowNotAvailableError
 
         left_click_element_with_mouse(self.window)
 
@@ -559,7 +611,10 @@ class AppModule(appModuleHandler.AppModule):
                 max_displayed_elements=50,
             )
             dialog.Show()
-            ui.message("Chargement de la liste des programmes")
+            ui.message(
+                "Chargement de la liste des programmes",
+                speechPriority=SpeechPriority.NEXT,
+            )
             update_program_list(dialog)
             mainFrame.postPopup()
 
@@ -568,94 +623,125 @@ class AppModule(appModuleHandler.AppModule):
         # Wait for the focus to be passed on to the program list
         core.callLater(100, _program_list)
 
+    def getModeButtonList(self, depth: int = 0) -> Dict[str, NVDAObject]:
+        """
+        Retrieves a list of mode buttons.
 
-def getModeButtonList() -> Optional[List[NVDAObject]]:
-    """
-    Retrieves a list of mode buttons from the current foreground window.
+        Raises:
+            WindowUnavailableError: If the window is not available.
+            ButtonListPaneNotAvailableError: If the button list pane is not available.
 
-    Returns:
-        Optional[List[NVDAObject]]: A list of mode buttons as NVDAObjects,
-        or None if the expected element hierarchy is not found.
-    """
-    window = api.getForegroundObject()
+        Returns:
+            Dict[NVDAObject]: A dict of mode buttons as NVDAObjects, in the format "BUTTON_NAME": NVDAObject.
+        """
 
-    if not hasattr(getModeButtonList, "_index_cache"):
-        getModeButtonList._index_cache = 0
+        if not hasattr(self, "buttonListPane"):
+            if not self.window:
+                ui.message(
+                    "Une erreur fatale s'est produite: La fenêtre captvty n'a pas été trouvée"
+                )
+                raise WindowNotAvailableError
+            window_location = self.window._get_location()
 
-    # This is probably not the most efficient approach, however,
-    # on computer restart the index changes at random,
-    # and there is no other way that I know of to identify this element.
-    for i in range(getModeButtonList._index_cache, len(window.children)):
-        genericWindow = window.children[i]
-        # The buttons are on top of the channel list,
-        # And although they don't share a GenericWindow, they do share their width
-        if genericWindow._get_location().width != CHANNEL_LIST_WIDTH:
-            continue
+            x = window_location.left + 10
+            y = window_location.top + 10
 
-        try:
-            pane = genericWindow.children[3]
-        except IndexError:
-            continue
+            self.buttonListPane = self.window.objectFromPoint(x, y)
+            if not self.buttonListPane:
+                raise ButtonListPaneNotAvailableError
 
-        mode_buttons = [
-            button
-            for pane_child in pane.children
+        mode_buttons = {
+            button.name: button
+            for pane_child in self.buttonListPane.children  # type: ignore
             for button in pane_child.children
-            if button.role == controlTypes.ROLE_BUTTON
-        ]
+            if button and button.role == controlTypes.ROLE_BUTTON
+        }
 
-        if len(mode_buttons) == MODE_BUTTONS_COUNT:
-            getModeButtonList._index_cache = i
-            log.debug(f"> Mode Button Index: {i}")
-            return mode_buttons
+        return mode_buttons
 
-    del getModeButtonList._index_cache
-    return None
+    def getAppMode(self) -> AppModes:
+        """
+        Determines the current application mode by examining the state of mode buttons.
 
+        Returns:
+            AppModes: An enum value representing the current application mode.
+                - AppModes.DIRECT if the right-most button's name is "DIRECT"
+                - AppModes.RATTRAPAGE if the right-most button's name is "RATTRAPAGE"
+                - AppModes.TELECHARGEMENT if the right-most button's name is "TÉLÉCHARGEMENT\nMANUEL"
+                - AppModes.OTHER if the right-most button's name is not one of the above.
+        """
+        buttons = self.getModeButtonList()
+        if not buttons:
+            log.debugWarning("We couldn't find the mode buttons")
+            return AppModes.OTHER
 
-def getChannelButtonList() -> Optional[List[NVDAObject]]:
-    """
-    Gets the list of channel buttons.
+        right_most = None
+        for button in buttons.values():
+            if not right_most or button.location.left > right_most.location.left:  # type: ignore
+                right_most = button
 
-    Returns:
-        A list of NVDAObjects representing the channel buttons or None if not found.
-    """
-    elem = find_element_by_size(target_width=CHANNEL_LIST_WIDTH)
-    if elem:
-        for child in elem.children:
-            if child.childCount >= 18:  # type: ignore - childCount is always defined for NVDAObject
-                channel_list = child.children
-                return [channel.children[3].children[1] for channel in channel_list]
-    return None
+        if not right_most:
+            raise ButtonListPaneNotAvailableError
 
+        if right_most.name == "DIRECT":
+            return AppModes.DIRECT
+        elif right_most.name == "RATTRAPAGE":
+            return AppModes.RATTRAPAGE
+        elif right_most.name == "TÉLÉCHARGEMENT\nMANUEL":
+            return AppModes.TELECHARGEMENT
 
-def getAppMode() -> AppModes:
-    """
-    Determines the current application mode by examining the state of mode buttons.
-
-    Returns:
-        AppModes: An enum value representing the current application mode.
-            - AppModes.DIRECT if the right-most button's name is "DIRECT"
-            - AppModes.RATTRAPAGE if the right-most button's name is "RATTRAPAGE"
-            - AppModes.TELECHARGEMENT if the right-most button's name is "TÉLÉCHARGEMENT\nMANUEL"
-            - AppModes.OTHER if the right-most button's name is not one of the above.
-    """
-    buttons = getModeButtonList()
-    if not buttons:
-        log.debugWarning("We couldn't find the mode buttons")
+        log.debugWarning(f"We didn't find DIRECT or RATTRAPAGE but {right_most.name}")
         return AppModes.OTHER
 
-    right_most = buttons[0]
-    for button in buttons[1:]:
-        if button.location.left > right_most.location.left:  # type: ignore
-            right_most = button
+    def getChannelButtonList(self) -> Optional[List[NVDAObject]]:
+        """
+        Gets the list of channel buttons.
 
-    if right_most.name == "DIRECT":
-        return AppModes.DIRECT
-    elif right_most.name == "RATTRAPAGE":
-        return AppModes.RATTRAPAGE
-    elif right_most.name == "TÉLÉCHARGEMENT\nMANUEL":
-        return AppModes.TELECHARGEMENT
+        Raises:
+            WindowNotAvailableError: If the Captvty window could not be found.
+            ChannelListNotAvailableError: If the channel list could not be located.
+            InvalidElementRoleError: If an unexpected type of element is found where a channel list is expected.
+            NotImplementedError: If the application mode is not supported, i.e. not DIRECT or RATTRAPAGE.
 
-    log.debugWarning(f"We didn't find DIRECT or RATTRAPAGE but {right_most.name}")
-    return AppModes.OTHER
+        Returns:
+            A list of NVDAObjects representing the channel buttons or None if not found.
+        """
+        if not self.window:
+            ui.message(
+                "Une erreur fatale s'est produite: La fenêtre captvty n'a pas été trouvée"
+            )
+            raise WindowNotAvailableError
+        window_location = self.window._get_location()
+
+        x = window_location.left + 50
+        y = window_location.top + (window_location.height // 2)
+
+        channel_list = self.window.objectFromPoint(x, y)
+        if not channel_list:
+            raise ChannelListNotAvailableError
+
+        appMode = self.getAppMode()
+        if appMode == AppModes.RATTRAPAGE:
+            if channel_list.role == controlTypes.ROLE_CHECKBOX:
+                channel_list = channel_list.parent.parent.parent.parent  # type: ignore
+            else:
+                raise InvalidElementRoleError(
+                    f"Expected a checkbox, but found a {channel_list.role}"
+                )
+        elif appMode == AppModes.DIRECT:
+            if channel_list.role == controlTypes.ROLE_BUTTON:
+                channel_list = (
+                    channel_list.parent.parent.parent.parent.parent.parent.parent.parent  # type: ignore
+                )
+            elif channel_list.role == controlTypes.ROLE_PANE:
+                channel_list = channel_list.parent.parent.parent.parent.parent.parent  # type: ignore
+            else:
+                raise InvalidElementRoleError(
+                    f"Expected a button or a pane, but found a {channel_list.role}"
+                )
+        elif appMode in (AppModes.TELECHARGEMENT, AppModes.OTHER):
+            raise NotImplementedError(
+                f"Function not yet implemented for the app mode: {appMode}"
+            )
+
+        return [channel.children[3].children[1] for channel in channel_list.children]  # type: ignore
