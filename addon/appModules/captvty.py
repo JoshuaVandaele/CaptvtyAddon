@@ -139,27 +139,6 @@ class AppModule(appModuleHandler.AppModule):
         """
         self.doModeButtonAction("TÉLÉCHARGEMENT\nMANUEL")
 
-    @script(gesture="kb:control+e")
-    def script_CTRL_E_Override(self, gesture):
-        """
-        Creates a new CTRL+E keyboard shortcut which I use for testing.
-
-        Args:
-            gesture (str): The gesture that triggered the script.
-        """
-        ui.message("start")
-        window_width = self.window.location.width
-
-        x_hover_offset = -(window_width // 2) + 50
-        ui.message(f"offset: {x_hover_offset}")
-
-        hover_element_with_mouse(  # right_click_element_with_mouse(
-            element=self.window,
-            x_offset=x_hover_offset,
-            y_offset=20,
-        )
-        ui.message("end")
-
     @script(description="Liste les chaines.", gesture="kb:NVDA+L")
     def script_ChannelList(self, gesture: str) -> None:
         """
@@ -420,6 +399,11 @@ class AppModule(appModuleHandler.AppModule):
             selectedProgramElement: The selected NVDAObject representing the program element.
             selectedOption: The selected option.
         """
+        if not self.window:
+            ui.message(
+                "Une erreur fatale s'est produite: La fenêtre captvty n'a pas été trouvée"
+            )
+            raise WindowNotAvailableError
         window_height = self.window._get_location().height
         selectedProgramElement_width = selectedProgramElement.location.width
 

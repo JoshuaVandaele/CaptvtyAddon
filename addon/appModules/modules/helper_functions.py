@@ -220,10 +220,6 @@ def where_is_element_trespassing(
     window_right = window_location.left + window_location.width
     window_bottom = window_location.top + window_location.height
 
-    log.info(
-        f"element {element_location}, bottom {element_bottom}, right {element_right}"
-    )
-    log.info(f"window {window_location}, bottom {window_bottom}, right {window_right}")
     is_inside_horizontal = (
         element_left >= window_location.left and element_right <= window_right
     )
@@ -280,7 +276,6 @@ def scroll_to_element(
     has_not_moved_counter = 0
     for _ in range(max_attempts):
         trespassing_side = where_is_element_trespassing(element, window, bounds_offset)
-        log.info(f"trespassing: {trespassing_side}")
 
         if trespassing_side == "above":
             scroll_element_with_mouse(

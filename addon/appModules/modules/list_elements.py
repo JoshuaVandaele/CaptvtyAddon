@@ -273,11 +273,6 @@ class ElementsListDialog(wx.Frame):
         selectedIndex = self.elementsListBox.GetFirstSelected()
         if selectedIndex != -1:
             self.selectedElement = self.elements[self.element_indices[selectedIndex]]
-        log.debug(
-            f"Selected element: {self.selectedElement.devInfo}\n"
-            f"index: {selectedIndex}\n"
-            f"element_indices: {self.element_indices}"
-        )
 
         self.callback(self.selectedElement)
 
